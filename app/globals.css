@@ -1,0 +1,402 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --background: #faf8f4;
+  --foreground: #1c1917;
+  --surface: #ffffff;
+  --surface-muted: #f5f5f4;
+  --border: rgb(231 229 228 / 0.8);
+  --border-muted: rgb(231 229 228 / 0.55);
+  --muted: #78716c;
+  --reading-text: 1rem;
+  --reading-text-sm: 1.125rem;
+  --reading-verse-num: 0.75rem;
+  --reading-original: 1.05rem;
+  --reading-original-sm: 1.125rem;
+  --reading-meta: 0.625rem;
+  --reading-meta-sm: 0.6875rem;
+  --reading-line-height: 1.9;
+  --scrollbar-thumb: rgb(168 162 158 / 0.45);
+  --scrollbar-thumb-hover: rgb(180 83 9 / 0.55);
+  --scrollbar-track: transparent;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+}
+
+html[data-reading-font-size="small"] {
+  --reading-text: 0.875rem;
+  --reading-text-sm: 0.9375rem;
+  --reading-verse-num: 0.6875rem;
+  --reading-original: 0.9375rem;
+  --reading-original-sm: 1rem;
+  --reading-meta: 0.5625rem;
+  --reading-meta-sm: 0.625rem;
+}
+
+html[data-reading-font-size="large"] {
+  --reading-text: 1.125rem;
+  --reading-text-sm: 1.25rem;
+  --reading-verse-num: 0.8125rem;
+  --reading-original: 1.1875rem;
+  --reading-original-sm: 1.3125rem;
+  --reading-meta: 0.6875rem;
+  --reading-meta-sm: 0.75rem;
+}
+
+.dark {
+  color-scheme: dark;
+  --background: #14110f;
+  --foreground: #f5f5f4;
+  --surface: #1f1c1a;
+  --surface-muted: #292524;
+  --border: rgb(68 64 60 / 0.28);
+  --border-muted: rgb(41 37 36 / 0.72);
+  --muted: #a8a29e;
+  --scrollbar-thumb: rgb(87 83 78 / 0.55);
+  --scrollbar-thumb-hover: rgb(180 83 9 / 0.65);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-border: var(--border);
+  --color-muted: var(--muted);
+  --font-sans: var(--font-geist-sans);
+  --font-serif: var(--font-noto-serif-kr);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  min-height: 100%;
+  min-height: -webkit-fill-available;
+}
+
+/* iOS safe-area utilities — class names exported from lib/safe-area.ts */
+.safe-t {
+  padding-top: var(--safe-top);
+}
+
+.safe-x {
+  padding-left: max(1rem, var(--safe-left));
+  padding-right: max(1rem, var(--safe-right));
+}
+
+@media (min-width: 640px) {
+  .safe-x {
+    padding-left: max(1.5rem, var(--safe-left));
+    padding-right: max(1.5rem, var(--safe-right));
+  }
+}
+
+.safe-b {
+  padding-bottom: max(1rem, var(--safe-bottom));
+}
+
+.safe-b-lg {
+  padding-bottom: max(2.5rem, var(--safe-bottom));
+}
+
+.safe-modal {
+  padding-top: var(--safe-top);
+  padding-bottom: var(--safe-bottom);
+  padding-left: var(--safe-left);
+  padding-right: var(--safe-right);
+}
+
+@media (min-width: 640px) {
+  .safe-modal {
+    padding: 0;
+  }
+}
+
+.safe-fixed-b {
+  bottom: calc(1.25rem + var(--safe-bottom));
+}
+
+.safe-fixed-r {
+  right: calc(1rem + var(--safe-right));
+}
+
+@media (min-width: 640px) {
+  .safe-fixed-b {
+    bottom: calc(1.5rem + var(--safe-bottom));
+  }
+
+  .safe-fixed-r {
+    right: calc(1.5rem + var(--safe-right));
+  }
+}
+
+.safe-fixed-b-bar {
+  bottom: 0;
+  padding-bottom: max(1rem, var(--safe-bottom));
+}
+
+.safe-overlay-bar {
+  bottom: 0;
+  padding-bottom: max(1rem, var(--safe-bottom));
+  padding-left: max(1rem, var(--safe-left));
+  padding-right: max(1rem, var(--safe-right));
+}
+
+@media (min-width: 640px) {
+  .safe-fixed-b-bar {
+    bottom: auto;
+    padding-bottom: 0;
+  }
+
+  .safe-overlay-bar {
+    bottom: calc(1.5rem + var(--safe-bottom));
+    right: calc(1.5rem + var(--safe-right));
+    left: auto;
+    padding: 0;
+  }
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb);
+  border-radius: 9999px;
+  transition: background-color 0.2s ease;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scrollbar-thumb-hover);
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+.font-serif {
+  font-family: var(--font-noto-serif-kr), "Noto Serif KR", serif;
+}
+
+.font-hebrew {
+  font-family: var(--font-noto-sans-hebrew), "Noto Sans Hebrew", serif;
+}
+
+.font-greek {
+  font-family: var(--font-noto-sans), "Noto Sans", sans-serif;
+}
+
+.text-reading {
+  font-size: var(--reading-text);
+  line-height: var(--reading-line-height);
+}
+
+@media (min-width: 640px) {
+  .text-reading {
+    font-size: var(--reading-text-sm);
+  }
+}
+
+.text-reading-verse-num {
+  font-size: var(--reading-verse-num);
+}
+
+.text-reading-original {
+  font-size: var(--reading-original);
+}
+
+@media (min-width: 640px) {
+  .text-reading-original {
+    font-size: var(--reading-original-sm);
+  }
+}
+
+.text-reading-meta {
+  font-size: var(--reading-meta);
+}
+
+.last-read-item-divider {
+  border-color: rgb(231 229 228 / 0.8);
+}
+
+.dark .last-read-item-divider {
+  border-color: var(--border-muted);
+}
+
+@media (min-width: 640px) {
+  .text-reading-meta {
+    font-size: var(--reading-meta-sm);
+  }
+}
+
+.dark .bg-white,
+.dark .bg-\[\#faf8f4\] {
+  background-color: var(--surface);
+}
+
+.dark .bg-stone-50 {
+  background-color: var(--surface-muted);
+}
+
+.dark .text-stone-900 {
+  color: var(--foreground);
+}
+
+.dark .text-stone-800 {
+  color: #e7e5e4;
+}
+
+.dark .text-stone-700 {
+  color: #d6d3d1;
+}
+
+.dark .text-stone-600 {
+  color: #a8a29e;
+}
+
+.dark .text-stone-500,
+.dark .text-stone-400 {
+  color: var(--muted);
+}
+
+.dark .border-stone-100,
+.dark .border-t.border-stone-100,
+.dark .border-b.border-stone-100,
+.dark .border-r.border-stone-100 {
+  border-color: var(--border-muted);
+}
+
+.dark .border-stone-200,
+.dark .border-stone-200\/80,
+.dark .border-amber-200\/60,
+.dark .border-amber-200\/80,
+.dark .border-border {
+  border-color: var(--border);
+}
+
+.dark .hover\:border-stone-100:hover,
+.dark .hover\:border-amber-200:hover,
+.dark .hover\:border-amber-300:hover {
+  border-color: rgb(180 83 9 / 0.28);
+}
+
+.dark .focus\:border-amber-300:focus {
+  border-color: rgb(180 83 9 / 0.32);
+}
+
+.dark .ring-amber-800\/20 {
+  --tw-ring-color: rgb(180 83 9 / 0.12);
+}
+
+.dark .focus\:ring-4:focus {
+  --tw-ring-color: rgb(180 83 9 / 0.1);
+}
+
+.dark .divide-stone-100 {
+  --tw-divide-color: var(--border-muted);
+}
+
+.dark .divide-stone-200\/80 {
+  --tw-divide-color: var(--border-muted);
+}
+
+.dark .ring-stone-200 {
+  --tw-ring-color: var(--border);
+}
+
+.dark .hover\:bg-stone-50:hover,
+.dark .hover\:bg-stone-50\/60:hover,
+.dark .hover\:bg-stone-100:hover {
+  background-color: var(--surface-muted);
+}
+
+.dark .hover\:bg-amber-50:hover,
+.dark .hover\:bg-amber-50\/60:hover {
+  background-color: rgb(69 26 3 / 0.45);
+}
+
+.dark .hover\:text-stone-800:hover,
+.dark .hover\:text-stone-900:hover {
+  color: var(--foreground);
+}
+
+.dark .hover\:text-stone-700:hover {
+  color: #d6d3d1;
+}
+
+.dark input[type="search"],
+.dark input {
+  background-color: var(--surface);
+  color: var(--foreground);
+}
+
+.dark input::placeholder {
+  color: var(--muted);
+}
+
+.dark mark,
+.dark .bg-amber-200\/80 {
+  background-color: rgb(251 191 36 / 0.28);
+  color: var(--foreground);
+}
+
+.dark .border-amber-900\/40 {
+  border-color: rgb(120 53 15 / 0.35);
+}
+
+.dark .shadow-lg,
+.dark .shadow-xl,
+.dark .shadow-2xl {
+  --tw-shadow-color: rgb(0 0 0 / 0.45);
+}
+
+.dark .shadow-stone-900\/10 {
+  --tw-shadow-color: rgb(0 0 0 / 0.35);
+}
+
+.dark .from-amber-50 {
+  --tw-gradient-from: rgb(41 37 36 / 0.95);
+}
+
+.dark .to-orange-50\/50 {
+  --tw-gradient-to: rgb(28 25 23 / 0.85);
+}
+
+.dark .bg-amber-100\/60 {
+  background-color: rgb(69 26 3 / 0.45);
+}
+
+.sefaria-commentary b,
+.sefaria-commentary strong {
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.sefaria-commentary i,
+.sefaria-commentary em {
+  font-style: italic;
+}
+
+.sefaria-commentary br {
+  display: block;
+  content: "";
+  margin-top: 0.5rem;
+}
+
+.sefaria-commentary span {
+  color: inherit;
+}

@@ -1,0 +1,662 @@
+[
+  {
+    "id": 1,
+    "name": "창세기",
+    "slug": "genesis",
+    "koSlug": "창세기",
+    "abbrev": "창",
+    "chapters": 50,
+    "testament": "old",
+    "category": "pentateuch"
+  },
+  {
+    "id": 2,
+    "name": "출애굽기",
+    "slug": "exodus",
+    "koSlug": "출애굽기",
+    "abbrev": "출",
+    "chapters": 40,
+    "testament": "old",
+    "category": "pentateuch"
+  },
+  {
+    "id": 3,
+    "name": "레위기",
+    "slug": "leviticus",
+    "koSlug": "레위기",
+    "abbrev": "레",
+    "chapters": 27,
+    "testament": "old",
+    "category": "pentateuch"
+  },
+  {
+    "id": 4,
+    "name": "민수기",
+    "slug": "numbers",
+    "koSlug": "민수기",
+    "abbrev": "민",
+    "chapters": 36,
+    "testament": "old",
+    "category": "pentateuch"
+  },
+  {
+    "id": 5,
+    "name": "신명기",
+    "slug": "deuteronomy",
+    "koSlug": "신명기",
+    "abbrev": "신",
+    "chapters": 34,
+    "testament": "old",
+    "category": "pentateuch"
+  },
+  {
+    "id": 6,
+    "name": "여호수아",
+    "slug": "joshua",
+    "koSlug": "여호수아",
+    "abbrev": "수",
+    "chapters": 24,
+    "testament": "old",
+    "category": "historical"
+  },
+  {
+    "id": 7,
+    "name": "사사기",
+    "slug": "judges",
+    "koSlug": "사사기",
+    "abbrev": "삿",
+    "chapters": 21,
+    "testament": "old",
+    "category": "historical"
+  },
+  {
+    "id": 8,
+    "name": "룻기",
+    "slug": "ruth",
+    "koSlug": "룻기",
+    "abbrev": "룻",
+    "chapters": 4,
+    "testament": "old",
+    "category": "historical"
+  },
+  {
+    "id": 9,
+    "name": "사무엘상",
+    "slug": "1-samuel",
+    "koSlug": "사무엘상",
+    "abbrev": "삼상",
+    "chapters": 31,
+    "testament": "old",
+    "category": "historical"
+  },
+  {
+    "id": 10,
+    "name": "사무엘하",
+    "slug": "2-samuel",
+    "koSlug": "사무엘하",
+    "abbrev": "삼하",
+    "chapters": 24,
+    "testament": "old",
+    "category": "historical"
+  },
+  {
+    "id": 11,
+    "name": "열왕기상",
+    "slug": "1-kings",
+    "koSlug": "열왕기상",
+    "abbrev": "왕상",
+    "chapters": 22,
+    "testament": "old",
+    "category": "historical"
+  },
+  {
+    "id": 12,
+    "name": "열왕기하",
+    "slug": "2-kings",
+    "koSlug": "열왕기하",
+    "abbrev": "왕하",
+    "chapters": 25,
+    "testament": "old",
+    "category": "historical"
+  },
+  {
+    "id": 13,
+    "name": "역대상",
+    "slug": "1-chronicles",
+    "koSlug": "역대상",
+    "abbrev": "대상",
+    "chapters": 29,
+    "testament": "old",
+    "category": "historical"
+  },
+  {
+    "id": 14,
+    "name": "역대하",
+    "slug": "2-chronicles",
+    "koSlug": "역대하",
+    "abbrev": "대하",
+    "chapters": 36,
+    "testament": "old",
+    "category": "historical"
+  },
+  {
+    "id": 15,
+    "name": "에스라",
+    "slug": "ezra",
+    "koSlug": "에스라",
+    "abbrev": "스",
+    "chapters": 10,
+    "testament": "old",
+    "category": "historical"
+  },
+  {
+    "id": 16,
+    "name": "느헤미야",
+    "slug": "nehemiah",
+    "koSlug": "느헤미야",
+    "abbrev": "느",
+    "chapters": 13,
+    "testament": "old",
+    "category": "historical"
+  },
+  {
+    "id": 17,
+    "name": "에스더",
+    "slug": "esther",
+    "koSlug": "에스더",
+    "abbrev": "에",
+    "chapters": 10,
+    "testament": "old",
+    "category": "historical"
+  },
+  {
+    "id": 18,
+    "name": "욥기",
+    "slug": "job",
+    "koSlug": "욥기",
+    "abbrev": "욥",
+    "chapters": 42,
+    "testament": "old",
+    "category": "poetry"
+  },
+  {
+    "id": 19,
+    "name": "시편",
+    "slug": "psalms",
+    "koSlug": "시편",
+    "abbrev": "시",
+    "chapters": 150,
+    "testament": "old",
+    "category": "poetry"
+  },
+  {
+    "id": 20,
+    "name": "잠언",
+    "slug": "proverbs",
+    "koSlug": "잠언",
+    "abbrev": "잠",
+    "chapters": 31,
+    "testament": "old",
+    "category": "poetry"
+  },
+  {
+    "id": 21,
+    "name": "전도서",
+    "slug": "ecclesiastes",
+    "koSlug": "전도서",
+    "abbrev": "전",
+    "chapters": 12,
+    "testament": "old",
+    "category": "poetry"
+  },
+  {
+    "id": 22,
+    "name": "아가",
+    "slug": "song-of-solomon",
+    "koSlug": "아가",
+    "abbrev": "아",
+    "chapters": 8,
+    "testament": "old",
+    "category": "poetry"
+  },
+  {
+    "id": 23,
+    "name": "이사야",
+    "slug": "isaiah",
+    "koSlug": "이사야",
+    "abbrev": "사",
+    "chapters": 66,
+    "testament": "old",
+    "category": "major-prophets"
+  },
+  {
+    "id": 24,
+    "name": "예레미야",
+    "slug": "jeremiah",
+    "koSlug": "예레미야",
+    "abbrev": "렘",
+    "chapters": 52,
+    "testament": "old",
+    "category": "major-prophets"
+  },
+  {
+    "id": 25,
+    "name": "예레미야애가",
+    "slug": "lamentations",
+    "koSlug": "예레미야애가",
+    "abbrev": "애",
+    "chapters": 5,
+    "testament": "old",
+    "category": "major-prophets"
+  },
+  {
+    "id": 26,
+    "name": "에스겔",
+    "slug": "ezekiel",
+    "koSlug": "에스겔",
+    "abbrev": "겔",
+    "chapters": 48,
+    "testament": "old",
+    "category": "major-prophets"
+  },
+  {
+    "id": 27,
+    "name": "다니엘",
+    "slug": "daniel",
+    "koSlug": "다니엘",
+    "abbrev": "단",
+    "chapters": 12,
+    "testament": "old",
+    "category": "major-prophets"
+  },
+  {
+    "id": 28,
+    "name": "호세아",
+    "slug": "hosea",
+    "koSlug": "호세아",
+    "abbrev": "호",
+    "chapters": 14,
+    "testament": "old",
+    "category": "minor-prophets"
+  },
+  {
+    "id": 29,
+    "name": "요엘",
+    "slug": "joel",
+    "koSlug": "요엘",
+    "abbrev": "욜",
+    "chapters": 3,
+    "testament": "old",
+    "category": "minor-prophets"
+  },
+  {
+    "id": 30,
+    "name": "아모스",
+    "slug": "amos",
+    "koSlug": "아모스",
+    "abbrev": "암",
+    "chapters": 9,
+    "testament": "old",
+    "category": "minor-prophets"
+  },
+  {
+    "id": 31,
+    "name": "오바댜",
+    "slug": "obadiah",
+    "koSlug": "오바댜",
+    "abbrev": "옵",
+    "chapters": 1,
+    "testament": "old",
+    "category": "minor-prophets"
+  },
+  {
+    "id": 32,
+    "name": "요나",
+    "slug": "jonah",
+    "koSlug": "요나",
+    "abbrev": "욘",
+    "chapters": 4,
+    "testament": "old",
+    "category": "minor-prophets"
+  },
+  {
+    "id": 33,
+    "name": "미가",
+    "slug": "micah",
+    "koSlug": "미가",
+    "abbrev": "미",
+    "chapters": 7,
+    "testament": "old",
+    "category": "minor-prophets"
+  },
+  {
+    "id": 34,
+    "name": "나훔",
+    "slug": "nahum",
+    "koSlug": "나훔",
+    "abbrev": "나",
+    "chapters": 3,
+    "testament": "old",
+    "category": "minor-prophets"
+  },
+  {
+    "id": 35,
+    "name": "하박국",
+    "slug": "habakkuk",
+    "koSlug": "하박국",
+    "abbrev": "합",
+    "chapters": 3,
+    "testament": "old",
+    "category": "minor-prophets"
+  },
+  {
+    "id": 36,
+    "name": "스바냐",
+    "slug": "zephaniah",
+    "koSlug": "스바냐",
+    "abbrev": "습",
+    "chapters": 3,
+    "testament": "old",
+    "category": "minor-prophets"
+  },
+  {
+    "id": 37,
+    "name": "학개",
+    "slug": "haggai",
+    "koSlug": "학개",
+    "abbrev": "학",
+    "chapters": 2,
+    "testament": "old",
+    "category": "minor-prophets"
+  },
+  {
+    "id": 38,
+    "name": "스가랴",
+    "slug": "zechariah",
+    "koSlug": "스가랴",
+    "abbrev": "슥",
+    "chapters": 14,
+    "testament": "old",
+    "category": "minor-prophets"
+  },
+  {
+    "id": 39,
+    "name": "말라기",
+    "slug": "malachi",
+    "koSlug": "말라기",
+    "abbrev": "말",
+    "chapters": 4,
+    "testament": "old",
+    "category": "minor-prophets"
+  },
+  {
+    "id": 40,
+    "name": "마태복음",
+    "slug": "matthew",
+    "koSlug": "마태복음",
+    "abbrev": "마",
+    "chapters": 28,
+    "testament": "new",
+    "category": "gospels"
+  },
+  {
+    "id": 41,
+    "name": "마가복음",
+    "slug": "mark",
+    "koSlug": "마가복음",
+    "abbrev": "막",
+    "chapters": 16,
+    "testament": "new",
+    "category": "gospels"
+  },
+  {
+    "id": 42,
+    "name": "누가복음",
+    "slug": "luke",
+    "koSlug": "누가복음",
+    "abbrev": "눅",
+    "chapters": 24,
+    "testament": "new",
+    "category": "gospels"
+  },
+  {
+    "id": 43,
+    "name": "요한복음",
+    "slug": "john",
+    "koSlug": "요한복음",
+    "abbrev": "요",
+    "chapters": 21,
+    "testament": "new",
+    "category": "gospels"
+  },
+  {
+    "id": 44,
+    "name": "사도행전",
+    "slug": "acts",
+    "koSlug": "사도행전",
+    "abbrev": "행",
+    "chapters": 28,
+    "testament": "new",
+    "category": "historical"
+  },
+  {
+    "id": 45,
+    "name": "로마서",
+    "slug": "romans",
+    "koSlug": "로마서",
+    "abbrev": "롬",
+    "chapters": 16,
+    "testament": "new",
+    "category": "pauline-epistles"
+  },
+  {
+    "id": 46,
+    "name": "고린도전서",
+    "slug": "1-corinthians",
+    "koSlug": "고린도전서",
+    "abbrev": "고전",
+    "chapters": 16,
+    "testament": "new",
+    "category": "pauline-epistles"
+  },
+  {
+    "id": 47,
+    "name": "고린도후서",
+    "slug": "2-corinthians",
+    "koSlug": "고린도후서",
+    "abbrev": "고후",
+    "chapters": 13,
+    "testament": "new",
+    "category": "pauline-epistles"
+  },
+  {
+    "id": 48,
+    "name": "갈라디아서",
+    "slug": "galatians",
+    "koSlug": "갈라디아서",
+    "abbrev": "갈",
+    "chapters": 6,
+    "testament": "new",
+    "category": "pauline-epistles"
+  },
+  {
+    "id": 49,
+    "name": "에베소서",
+    "slug": "ephesians",
+    "koSlug": "에베소서",
+    "abbrev": "엡",
+    "chapters": 6,
+    "testament": "new",
+    "category": "pauline-epistles"
+  },
+  {
+    "id": 50,
+    "name": "빌립보서",
+    "slug": "philippians",
+    "koSlug": "빌립보서",
+    "abbrev": "빌",
+    "chapters": 4,
+    "testament": "new",
+    "category": "pauline-epistles"
+  },
+  {
+    "id": 51,
+    "name": "골로새서",
+    "slug": "colossians",
+    "koSlug": "골로새서",
+    "abbrev": "골",
+    "chapters": 4,
+    "testament": "new",
+    "category": "pauline-epistles"
+  },
+  {
+    "id": 52,
+    "name": "데살로니가전서",
+    "slug": "1-thessalonians",
+    "koSlug": "데살로니가전서",
+    "abbrev": "살전",
+    "chapters": 5,
+    "testament": "new",
+    "category": "pauline-epistles"
+  },
+  {
+    "id": 53,
+    "name": "데살로니가후서",
+    "slug": "2-thessalonians",
+    "koSlug": "데살로니가후서",
+    "abbrev": "살후",
+    "chapters": 3,
+    "testament": "new",
+    "category": "pauline-epistles"
+  },
+  {
+    "id": 54,
+    "name": "디모데전서",
+    "slug": "1-timothy",
+    "koSlug": "디모데전서",
+    "abbrev": "딤전",
+    "chapters": 6,
+    "testament": "new",
+    "category": "pauline-epistles"
+  },
+  {
+    "id": 55,
+    "name": "디모데후서",
+    "slug": "2-timothy",
+    "koSlug": "디모데후서",
+    "abbrev": "딤후",
+    "chapters": 4,
+    "testament": "new",
+    "category": "pauline-epistles"
+  },
+  {
+    "id": 56,
+    "name": "디도서",
+    "slug": "titus",
+    "koSlug": "디도서",
+    "abbrev": "딛",
+    "chapters": 3,
+    "testament": "new",
+    "category": "pauline-epistles"
+  },
+  {
+    "id": 57,
+    "name": "빌레몬서",
+    "slug": "philemon",
+    "koSlug": "빌레몬서",
+    "abbrev": "몬",
+    "chapters": 1,
+    "testament": "new",
+    "category": "pauline-epistles"
+  },
+  {
+    "id": 58,
+    "name": "히브리서",
+    "slug": "hebrews",
+    "koSlug": "히브리서",
+    "abbrev": "히",
+    "chapters": 13,
+    "testament": "new",
+    "category": "general-epistles"
+  },
+  {
+    "id": 59,
+    "name": "야고보서",
+    "slug": "james",
+    "koSlug": "야고보서",
+    "abbrev": "약",
+    "chapters": 5,
+    "testament": "new",
+    "category": "general-epistles"
+  },
+  {
+    "id": 60,
+    "name": "베드로전서",
+    "slug": "1-peter",
+    "koSlug": "베드로전서",
+    "abbrev": "벧전",
+    "chapters": 5,
+    "testament": "new",
+    "category": "general-epistles"
+  },
+  {
+    "id": 61,
+    "name": "베드로후서",
+    "slug": "2-peter",
+    "koSlug": "베드로후서",
+    "abbrev": "벧후",
+    "chapters": 3,
+    "testament": "new",
+    "category": "general-epistles"
+  },
+  {
+    "id": 62,
+    "name": "요한1서",
+    "slug": "1-john",
+    "koSlug": "요한1서",
+    "abbrev": "요일",
+    "chapters": 5,
+    "testament": "new",
+    "category": "general-epistles"
+  },
+  {
+    "id": 63,
+    "name": "요한2서",
+    "slug": "2-john",
+    "koSlug": "요한2서",
+    "abbrev": "요이",
+    "chapters": 1,
+    "testament": "new",
+    "category": "general-epistles"
+  },
+  {
+    "id": 64,
+    "name": "요한3서",
+    "slug": "3-john",
+    "koSlug": "요한3서",
+    "abbrev": "요삼",
+    "chapters": 1,
+    "testament": "new",
+    "category": "general-epistles"
+  },
+  {
+    "id": 65,
+    "name": "유다서",
+    "slug": "jude",
+    "koSlug": "유다서",
+    "abbrev": "유",
+    "chapters": 1,
+    "testament": "new",
+    "category": "general-epistles"
+  },
+  {
+    "id": 66,
+    "name": "요한계시록",
+    "slug": "revelation",
+    "koSlug": "요한계시록",
+    "abbrev": "계",
+    "chapters": 22,
+    "testament": "new",
+    "category": "prophecy"
+  }
+]
