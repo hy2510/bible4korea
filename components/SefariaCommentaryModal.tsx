@@ -9,12 +9,14 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/ChevronIcons";
+import { lockBodyScroll } from "@/lib/body-scroll-lock";
 import {
   groupCommentariesByCommentator,
   type SefariaCommentary,
   type SefariaCommentatorGroup,
 } from "@/lib/sefaria";
 import { SAFE_AREA } from "@/lib/safe-area";
+import { stripHtml } from "@/lib/translate-ko";
 
 interface SefariaCommentaryModalProps {
   open: boolean;
@@ -29,11 +31,15 @@ function CommentaryActions({
   sefariaUrl,
   translating,
   showKorean,
+  copied,
+  onCopy,
   onTranslateToggle,
 }: {
   sefariaUrl: string;
   translating: boolean;
   showKorean: boolean;
+  copied: boolean;
+  onCopy: () => void;
   onTranslateToggle: () => void;
 }) {
   return (
@@ -46,14 +52,23 @@ function CommentaryActions({
       >
         Sefaria에서 보기
       </a>
-      <button
-        type="button"
-        onClick={onTranslateToggle}
-        disabled={translating}
-        className="cursor-pointer text-xs font-medium text-amber-800 underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-50 dark:text-amber-500/90"
-      >
-        {translating ? "번역 중…" : showKorean ? "원문" : "번역"}
-      </button>
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={onCopy}
+          className="cursor-pointer text-xs font-medium text-amber-800 underline-offset-2 hover:underline dark:text-amber-500/90"
+        >
+          {copied ? "복사됨" : "복사"}
+        </button>
+        <button
+          type="button"
+          onClick={onTranslateToggle}
+          disabled={translating}
+          className="cursor-pointer text-xs font-medium text-amber-800 underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-50 dark:text-amber-500/90"
+        >
+          {translating ? "번역 중…" : showKorean ? "원문" : "번역"}
+        </button>
+      </div>
     </div>
   );
 }
@@ -63,6 +78,49 @@ function CommentarySegment({ commentary }: { commentary: SefariaCommentary }) {
   const [translatedText, setTranslatedText] = useState<string | null>(null);
   const [translating, setTranslating] = useState(false);
   const [translateError, setTranslateError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const copiedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copiedTimeoutRef.current) {
+        clearTimeout(copiedTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const getDisplayText = () => {
+    if (showKorean && translatedText) return translatedText;
+    return stripHtml(commentary.text);
+  };
+
+  const handleCopy = async () => {
+    const text = getDisplayText().trim();
+    if (!text) return;
+
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.setAttribute("readonly", "");
+      textarea.style.position = "fixed";
+      textarea.style.left = "-9999px";
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      textarea.remove();
+    }
+
+    setCopied(true);
+    if (copiedTimeoutRef.current) {
+      clearTimeout(copiedTimeoutRef.current);
+    }
+    copiedTimeoutRef.current = setTimeout(() => {
+      setCopied(false);
+      copiedTimeoutRef.current = null;
+    }, 3000);
+  };
 
   const handleTranslateToggle = async () => {
     if (showKorean) {
@@ -114,6 +172,8 @@ function CommentarySegment({ commentary }: { commentary: SefariaCommentary }) {
     sefariaUrl: commentary.sefariaUrl,
     translating,
     showKorean,
+    copied,
+    onCopy: () => void handleCopy(),
     onTranslateToggle: () => void handleTranslateToggle(),
   };
 
@@ -330,13 +390,27 @@ export function SefariaCommentaryModal({
       if (event.key === "Escape") onClose();
     };
 
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    const unlock = lockBodyScroll();
     window.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      document.body.style.overflow = previousOverflow;
+      unlock();
       window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [open, onClose]);
+
+  useEffect(() => {
+    if (!open) return;
+    const closeFromSearchNavigate = () => onClose();
+    window.addEventListener(
+      "bible4korea:close-overlays",
+      closeFromSearchNavigate,
+    );
+    return () => {
+      window.removeEventListener(
+        "bible4korea:close-overlays",
+        closeFromSearchNavigate,
+      );
     };
   }, [open, onClose]);
 
@@ -346,11 +420,9 @@ export function SefariaCommentaryModal({
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-stretch justify-center p-0 sm:items-center sm:p-6">
-      <button
-        type="button"
-        aria-label="주석 닫기"
-        className="absolute inset-0 hidden cursor-default bg-stone-900/40 backdrop-blur-[1px] sm:block"
-        onClick={onClose}
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 hidden bg-stone-900/40 backdrop-blur-[1px] sm:block"
       />
 
       <div

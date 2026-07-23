@@ -4,6 +4,10 @@ import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
 import Database from "better-sqlite3";
 import { extractBriefGloss } from "../lib/strongs-gloss.mjs";
+import {
+  computeHebrewGematria,
+  extractHebrewRootKey,
+} from "../lib/hebrew-gematria.mjs";
 
 const DATA_DIR = path.resolve("data");
 const DB_PATH = path.join(DATA_DIR, "strongs-hebrew-ko.sqlite");
@@ -39,32 +43,49 @@ async function importFromTsv() {
       number INTEGER PRIMARY KEY,
       gloss TEXT NOT NULL,
       definition TEXT NOT NULL,
+      original TEXT NOT NULL DEFAULT '',
+      gematria INTEGER NOT NULL DEFAULT 0,
+      root_key TEXT NOT NULL DEFAULT '',
       source TEXT NOT NULL DEFAULT 'log-ko',
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
+    CREATE INDEX idx_strongs_hebrew_gematria ON strongs_hebrew (gematria);
+    CREATE INDEX idx_strongs_hebrew_root_key ON strongs_hebrew (root_key);
     CREATE TABLE strongs_greek (
       number INTEGER PRIMARY KEY,
       gloss TEXT NOT NULL,
       definition TEXT NOT NULL,
+      original TEXT NOT NULL DEFAULT '',
       source TEXT NOT NULL DEFAULT 'log-ko',
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
   `);
 
   const insertHebrew = db.prepare(`
-    INSERT INTO strongs_hebrew (number, gloss, definition)
-    VALUES (?, ?, ?)
+    INSERT INTO strongs_hebrew (number, gloss, definition, original, gematria, root_key)
+    VALUES (?, ?, ?, ?, ?, ?)
   `);
   const insertGreek = db.prepare(`
-    INSERT INTO strongs_greek (number, gloss, definition)
-    VALUES (?, ?, ?)
+    INSERT INTO strongs_greek (number, gloss, definition, original)
+    VALUES (?, ?, ?, ?)
   `);
 
   const insertHebrewMany = db.transaction((rows) => {
-    for (const row of rows) insertHebrew.run(row.number, row.gloss, row.definition);
+    for (const row of rows) {
+      insertHebrew.run(
+        row.number,
+        row.gloss,
+        row.definition,
+        row.original,
+        row.gematria,
+        row.rootKey,
+      );
+    }
   });
   const insertGreekMany = db.transaction((rows) => {
-    for (const row of rows) insertGreek.run(row.number, row.gloss, row.definition);
+    for (const row of rows) {
+      insertGreek.run(row.number, row.gloss, row.definition, row.original);
+    }
   });
 
   const stream = createInterface({
@@ -80,7 +101,7 @@ async function importFromTsv() {
   for await (const line of stream) {
     if (!line || line.startsWith("strong_num")) continue;
 
-    const [strongNum, testament, , , definition] = line.split("\t");
+    const [strongNum, testament, original = "", , definition] = line.split("\t");
     if (!definition) continue;
 
     if (testament === "hebrew" && strongNum?.startsWith("H")) {
@@ -91,6 +112,9 @@ async function importFromTsv() {
         number,
         gloss: extractBriefGloss(definition),
         definition,
+        original,
+        gematria: computeHebrewGematria(original),
+        rootKey: extractHebrewRootKey(original),
       });
 
       if (hebrewBatch.length >= 500) {
@@ -109,6 +133,7 @@ async function importFromTsv() {
         number,
         gloss: extractBriefGloss(definition),
         definition,
+        original,
       });
 
       if (greekBatch.length >= 500) {

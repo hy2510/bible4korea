@@ -8,6 +8,7 @@ import {
   featuredLabelClassName,
   featuredPanelClassName,
 } from "@/lib/featured-panel";
+import { stripKoreanBibleQuotes } from "@/lib/korean-verse-text";
 import {
   formatLastReadReference,
   getLastReadChapters,
@@ -79,7 +80,7 @@ export function LastReadCard() {
           <blockquote
             className={`mt-3 text-base sm:text-lg ${featuredBodyClassName}`}
           >
-            &ldquo;{latest.koreanText}&rdquo;
+            &ldquo;{stripKoreanBibleQuotes(latest.koreanText)}&rdquo;
           </blockquote>
         )}
         {latest.readAt && (
@@ -119,7 +120,7 @@ export function LastReadCard() {
                 </div>
                 {item.koreanText && (
                   <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-stone-500">
-                    {item.koreanText}
+                    {stripKoreanBibleQuotes(item.koreanText)}
                   </p>
                 )}
               </Link>

@@ -1,5 +1,7 @@
 import { Noto_Serif_KR, Noto_Sans, Noto_Sans_Hebrew } from "next/font/google";
 import { Geist } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { cookies } from "next/headers";
 import { Header } from "@/components/Header";
 import { BibleSearchProvider } from "@/components/BibleSearch";
 import { PwaInstallPrompt } from "@/components/PwaInstallPrompt";
@@ -10,9 +12,14 @@ import { SiteJsonLd } from "@/components/SiteJsonLd";
 import { PreferencesScript } from "@/components/PreferencesScript";
 import { ReadingFontSizeProvider } from "@/components/ReadingFontSizeProvider";
 import { ThemeProvider } from "@/components/ThemeProvider";
-import { rootMetadata } from "@/lib/seo";
+import { rootMetadata, SITE_SHORT_NAME } from "@/lib/seo";
 import { SAFE_AREA_VIEWPORT } from "@/lib/safe-area";
-import { PWA_THEME_COLOR } from "@/lib/theme";
+import {
+  PWA_THEME_COLOR,
+  THEME_COOKIE_NAME,
+  isThemeMode,
+  type ThemeMode,
+} from "@/lib/theme";
 import "./globals.css";
 
 const geist = Geist({
@@ -38,12 +45,34 @@ const notoSans = Noto_Sans({
   weight: ["400", "500"],
 });
 
-export const metadata = rootMetadata;
+async function getRequestTheme(): Promise<ThemeMode> {
+  const cookieStore = await cookies();
+  const stored = cookieStore.get(THEME_COOKIE_NAME)?.value ?? null;
+  return isThemeMode(stored) ? stored : "light";
+}
 
-export const viewport = {
-  themeColor: PWA_THEME_COLOR.light,
-  ...SAFE_AREA_VIEWPORT,
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const theme = await getRequestTheme();
+
+  return {
+    ...rootMetadata,
+    appleWebApp: {
+      capable: true,
+      title: SITE_SHORT_NAME,
+      statusBarStyle: theme === "dark" ? "black-translucent" : "default",
+    },
+  };
+}
+
+export async function generateViewport(): Promise<Viewport> {
+  const theme = await getRequestTheme();
+
+  return {
+    themeColor: PWA_THEME_COLOR[theme],
+    colorScheme: theme,
+    ...SAFE_AREA_VIEWPORT,
+  };
+}
 
 export default function RootLayout({
   children,

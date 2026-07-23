@@ -18,3 +18,13 @@ export const featuredMetaClassName = "text-sm text-stone-500";
 
 export const featuredLinkClassName =
   "text-sm text-amber-800 underline-offset-2 hover:underline dark:text-amber-500/90";
+
+/** Strong's match / selected word in verse original-language row */
+export const strongsWordHighlightClassName =
+  "bg-amber-100/90 ring-1 ring-amber-800/15 dark:bg-amber-900/30 dark:ring-amber-700/35";
+
+export const strongsWordHighlightTextClassName =
+  "text-amber-950 dark:text-amber-100/85";
+
+export const strongsWordHighlightMetaClassName =
+  "font-semibold text-amber-900 dark:text-amber-200/80";

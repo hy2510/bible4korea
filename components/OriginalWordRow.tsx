@@ -2,6 +2,12 @@
 
 import { memo, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useBibleSearch } from "@/components/BibleSearch";
+import { DictionaryModal } from "@/components/DictionaryModal";
+import {
+  strongsWordHighlightClassName,
+  strongsWordHighlightMetaClassName,
+  strongsWordHighlightTextClassName,
+} from "@/lib/featured-panel";
 import {
   isNonNumericHebrewStrongs,
   strongsCodesMatch,
@@ -52,6 +58,7 @@ function OriginalWordRowComponent({
   const { openSearch } = useBibleSearch();
   const [openIndex, setOpenIndex] = useState<number | null>(null);
   const [menuOffsetX, setMenuOffsetX] = useState(0);
+  const [dictionaryIndex, setDictionaryIndex] = useState<number | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const isHebrew = language === "hebrew";
   const firstHighlightRef = useRef<HTMLButtonElement>(null);
@@ -175,159 +182,170 @@ function OriginalWordRowComponent({
     "relative inline-flex w-fit max-w-full shrink-0 flex-col items-center rounded-lg px-1.5 py-1 text-center";
 
   return (
-    <div
-      dir={isHebrew ? "rtl" : "ltr"}
-      lang={isHebrew ? "he" : "el"}
-      className="mt-3 flex flex-wrap gap-x-2 gap-y-3 border-t border-stone-100 pt-3 sm:gap-x-3"
-    >
-      {words.map((word, index) => {
-        const isPlaceholderStrongs =
-          isHebrew && isNonNumericHebrewStrongs(word.strongs);
-        const hasLinkableStrongs =
-          Boolean(word.strongs) && !isPlaceholderStrongs;
-        const title = isPlaceholderStrongs
-          ? undefined
-          : hasLinkableStrongs
-            ? word.gloss
-              ? `${word.strongs} · ${word.gloss}`
-              : `${word.strongs} 메뉴 열기`
-            : (word.gloss ?? undefined);
+    <>
+      <div
+        dir={isHebrew ? "rtl" : "ltr"}
+        lang={isHebrew ? "he" : "el"}
+        className="mt-3 flex flex-wrap gap-x-2 gap-y-3 border-t border-stone-100 pt-3 sm:gap-x-3"
+      >
+        {words.map((word, index) => {
+          const isPlaceholderStrongs =
+            isHebrew && isNonNumericHebrewStrongs(word.strongs);
+          const hasLinkableStrongs =
+            Boolean(word.strongs) && !isPlaceholderStrongs;
+          const title = isPlaceholderStrongs
+            ? undefined
+            : hasLinkableStrongs
+              ? word.gloss
+                ? `${word.strongs} · ${word.gloss}`
+                : `${word.strongs} 메뉴 열기`
+              : (word.gloss ?? undefined);
 
-        const isHighlighted =
-          highlightStrongs &&
-          hasLinkableStrongs &&
-          strongsCodesMatch(word.strongs, highlightStrongs);
-        const highlightClassName = isHighlighted
-          ? "bg-amber-200/95 ring-2 ring-amber-400/90 shadow-sm dark:bg-amber-900/25 dark:ring-1 dark:ring-amber-700/30 dark:shadow-none"
-          : "hover:bg-amber-50";
+          const isHighlighted =
+            highlightStrongs &&
+            hasLinkableStrongs &&
+            strongsCodesMatch(word.strongs, highlightStrongs);
+          const highlightClassName = isHighlighted
+            ? strongsWordHighlightClassName
+            : "hover:bg-amber-50";
 
-        const wordTextClassName = `block whitespace-nowrap text-center leading-snug ${
-          isHighlighted ? "text-amber-950 dark:text-amber-100/80" : "text-stone-600"
-        } ${
-          hasLinkableStrongs && !isHighlighted ? "group-hover:text-amber-900" : ""
-        } ${
-          isHebrew
-            ? "text-reading-original font-hebrew"
-            : "text-reading-original font-greek"
-        }`;
+          const wordTextClassName = `block whitespace-nowrap text-center leading-snug ${
+            isHighlighted
+              ? strongsWordHighlightTextClassName
+              : "text-stone-600"
+          } ${
+            hasLinkableStrongs && !isHighlighted ? "group-hover:text-amber-900" : ""
+          } ${
+            isHebrew
+              ? "text-reading-original font-hebrew"
+              : "text-reading-original font-greek"
+          }`;
 
-        const content = (
-          <>
-            <span className={wordTextClassName}>{word.text}</span>
-            {(hasLinkableStrongs || isPlaceholderStrongs) && (
-              <span
-                dir="ltr"
-                lang="en"
-                className={`text-reading-meta mt-1 block whitespace-nowrap text-center font-mono font-medium tracking-tight ${
-                  isHighlighted
-                    ? "font-semibold text-amber-950 dark:text-amber-200/75"
-                    : "text-amber-800/75"
-                } ${hasLinkableStrongs && !isHighlighted ? "group-hover:text-amber-900" : ""}`}
+          const content = (
+            <>
+              <span className={wordTextClassName}>{word.text}</span>
+              {(hasLinkableStrongs || isPlaceholderStrongs) && (
+                <span
+                  dir="ltr"
+                  lang="en"
+                  className={`text-reading-meta mt-1 block whitespace-nowrap text-center font-mono font-medium tracking-tight ${
+                    isHighlighted
+                      ? strongsWordHighlightMetaClassName
+                      : "text-amber-800/75"
+                  } ${hasLinkableStrongs && !isHighlighted ? "group-hover:text-amber-900" : ""}`}
+                >
+                  {isPlaceholderStrongs ? "-" : word.strongs}
+                </span>
+              )}
+              {(isPlaceholderStrongs || word.gloss) && (
+                <span
+                  dir="ltr"
+                  lang="ko"
+                  className={`text-reading-meta mt-1 block whitespace-nowrap text-center leading-tight text-stone-500 ${
+                    hasLinkableStrongs ? "group-hover:text-stone-700" : ""
+                  }`}
+                >
+                  {isPlaceholderStrongs ? "-" : word.gloss}
+                </span>
+              )}
+            </>
+          );
+
+          if (!hasLinkableStrongs) {
+            return (
+              <div
+                key={`${word.text}-${word.strongs}-${index}`}
+                title={title}
+                className={wordBoxClassName}
               >
-                {isPlaceholderStrongs ? "-" : word.strongs}
-              </span>
-            )}
-            {(isPlaceholderStrongs || word.gloss) && (
-              <span
-                dir="ltr"
-                lang="ko"
-                className={`text-reading-meta mt-1 block whitespace-nowrap text-center leading-tight text-stone-500 ${
-                  hasLinkableStrongs ? "group-hover:text-stone-700" : ""
-                }`}
-              >
-                {isPlaceholderStrongs ? "-" : word.gloss}
-              </span>
-            )}
-          </>
-        );
+                {content}
+              </div>
+            );
+          }
 
-        if (!hasLinkableStrongs) {
+          const isOpen = openIndex === index;
+
           return (
             <div
-              key={`${word.text}-${word.strongs}-${index}`}
-              title={title}
+              key={`${word.strongs}-${index}`}
+              ref={(node) => {
+                if (isOpen) {
+                  menuRef.current = node;
+                } else if (menuRef.current === node) {
+                  menuRef.current = null;
+                }
+              }}
               className={wordBoxClassName}
             >
-              {content}
+              <button
+                ref={index === firstHighlightIndex ? firstHighlightRef : undefined}
+                type="button"
+                title={title}
+                aria-expanded={isOpen}
+                aria-haspopup="menu"
+                onClick={() => handleWordClick(index, isOpen)}
+                className={`group flex w-fit cursor-pointer flex-col items-center rounded-lg transition-colors ${highlightClassName}`}
+              >
+                {content}
+              </button>
+
+              {isOpen && (
+                <div
+                  role="menu"
+                  style={{ transform: `translateX(calc(-50% + ${menuOffsetX}px))` }}
+                  className="absolute top-full left-1/2 z-30 mt-2 w-fit whitespace-nowrap"
+                >
+                  <span
+                    aria-hidden
+                    style={{ left: `calc(50% - ${menuOffsetX}px)` }}
+                    className="absolute -top-[5px] h-2.5 w-2.5 -translate-x-1/2 rotate-45 border border-stone-200 border-b-0 border-r-0 bg-white"
+                  />
+                  <div className="overflow-hidden rounded-lg border border-stone-200 bg-white shadow-lg shadow-stone-900/10">
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="block cursor-pointer px-3.5 py-2 text-left text-sm text-stone-700 transition-colors hover:bg-amber-50 hover:text-amber-900"
+                      onClick={() => {
+                        setDictionaryIndex(index);
+                        setOpenIndex(null);
+                      }}
+                    >
+                      원어 사전
+                    </button>
+                    <div
+                      role="separator"
+                      className="border-t border-stone-100"
+                    />
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="block cursor-pointer px-3.5 py-2 text-left text-sm text-stone-700 transition-colors hover:bg-amber-50 hover:text-amber-900"
+                      onClick={() => {
+                        openSearch(word.strongs);
+                        setOpenIndex(null);
+                      }}
+                    >
+                      구절 찾기
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           );
-        }
-
-        const isOpen = openIndex === index;
-
-        return (
-          <div
-            key={`${word.strongs}-${index}`}
-            ref={(node) => {
-              if (isOpen) {
-                menuRef.current = node;
-              } else if (menuRef.current === node) {
-                menuRef.current = null;
-              }
-            }}
-            className={wordBoxClassName}
-          >
-            <button
-              ref={index === firstHighlightIndex ? firstHighlightRef : undefined}
-              type="button"
-              title={title}
-              aria-expanded={isOpen}
-              aria-haspopup="menu"
-              onClick={() => handleWordClick(index, isOpen)}
-              className={`group flex w-fit cursor-pointer flex-col items-center rounded-lg transition-colors ${highlightClassName}`}
-            >
-              {content}
-            </button>
-
-            {isOpen && (
-              <div
-                role="menu"
-                style={{ transform: `translateX(calc(-50% + ${menuOffsetX}px))` }}
-                className="absolute top-full left-1/2 z-30 mt-2 w-fit whitespace-nowrap"
-              >
-                <span
-                  aria-hidden
-                  style={{ left: `calc(50% - ${menuOffsetX}px)` }}
-                  className="absolute -top-[5px] h-2.5 w-2.5 -translate-x-1/2 rotate-45 border border-stone-200 border-b-0 border-r-0 bg-white"
-                />
-                <div className="overflow-hidden rounded-lg border border-stone-200 bg-white shadow-lg shadow-stone-900/10">
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="block cursor-pointer px-3.5 py-2 text-left text-sm text-stone-700 transition-colors hover:bg-amber-50 hover:text-amber-900"
-                    onClick={() => {
-                      window.open(
-                        getDictionaryUrl(word.strongs),
-                        "_blank",
-                        "noopener,noreferrer",
-                      );
-                      setOpenIndex(null);
-                    }}
-                  >
-                    원어 사전
-                  </button>
-                  <div
-                    role="separator"
-                    className="border-t border-stone-100"
-                  />
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="block cursor-pointer px-3.5 py-2 text-left text-sm text-stone-700 transition-colors hover:bg-amber-50 hover:text-amber-900"
-                    onClick={() => {
-                      openSearch(word.strongs);
-                      setOpenIndex(null);
-                    }}
-                  >
-                    구절 찾기
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        );
-      })}
-    </div>
+        })}
+      </div>
+      {dictionaryIndex !== null && (
+        <DictionaryModal
+          key={dictionaryIndex}
+          open
+          initialIndex={dictionaryIndex}
+          words={words}
+          language={language}
+          getDictionaryUrl={getDictionaryUrl}
+          onClose={() => setDictionaryIndex(null)}
+        />
+      )}
+    </>
   );
 }
 

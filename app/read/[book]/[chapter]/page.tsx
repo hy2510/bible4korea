@@ -19,13 +19,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     return createPageMetadata({
       title: "성경 읽기",
       description:
-        "한민족 원어 성경 — 히브리어 성경·헬라어 원문과 개역한글판을 대조하고, 원전 분해로 읽어보세요.",
+        "한민족 원어 성경 — 히브리어 성경·헬라어 성경 원문과 개역한글판을 대조하고, 원전 분해로 읽어보세요.",
     });
   }
 
   return createPageMetadata({
     title: `${book.name} ${chapter}장`,
-    description: `${book.name} ${chapter}장 — 히브리어 성경·헬라어 원문과 개역한글판을 대조하고, 원전 분해로 읽어보세요.`,
+    description: `${book.name} ${chapter}장 — 히브리어 성경·헬라어 성경 원문과 개역한글판을 대조하고, 원전 분해로 읽어보세요.`,
     path: `/read/${book.slug}/${chapter}`,
   });
 }

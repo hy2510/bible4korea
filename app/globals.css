@@ -71,6 +71,10 @@ html[data-reading-font-size="large"] {
   --font-serif: var(--font-noto-serif-kr);
 }
 
+html {
+  background: var(--background);
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
@@ -233,6 +237,19 @@ body {
   border-color: rgb(231 229 228 / 0.8);
 }
 
+/* Verse jump / Strong's match highlight — soft amber, matches site panels */
+.verse-jump-highlight {
+  background-color: rgb(255 251 235 / 0.72);
+  border-color: rgb(253 230 138 / 0.85);
+  box-shadow: 0 0 0 3px rgb(146 64 14 / 0.08);
+}
+
+.dark .verse-jump-highlight {
+  background-color: rgb(69 26 3 / 0.4);
+  border-color: rgb(180 83 9 / 0.35);
+  box-shadow: 0 0 0 3px rgb(180 83 9 / 0.14);
+}
+
 .dark .last-read-item-divider {
   border-color: var(--border-muted);
 }
@@ -378,6 +395,92 @@ body {
 
 .dark .bg-amber-100\/60 {
   background-color: rgb(69 26 3 / 0.45);
+}
+
+.dark .bg-amber-50,
+.dark .bg-amber-50\/60,
+.dark .bg-amber-50\/80,
+.dark .bg-amber-50\/90 {
+  background-color: rgb(69 26 3 / 0.4);
+}
+
+.dark .bg-amber-100,
+.dark .bg-amber-100\/70 {
+  background-color: rgb(69 26 3 / 0.5);
+}
+
+.dark .bg-sky-50\/90 {
+  background-color: rgb(12 74 110 / 0.32);
+}
+
+.dark .bg-sky-200\/80 {
+  background-color: rgb(7 89 133 / 0.45);
+  color: #e0f2fe;
+}
+
+.dark .bg-amber-300 {
+  background-color: rgb(245 158 11 / 0.75);
+}
+
+.dark .bg-sky-300 {
+  background-color: rgb(56 189 248 / 0.7);
+}
+
+.dark .bg-stone-50\/80 {
+  background-color: var(--surface-muted);
+}
+
+.dark .bg-white\/70 {
+  background-color: rgb(255 255 255 / 0.06);
+}
+
+.dark .hover\:bg-white\/70:hover {
+  background-color: rgb(255 255 255 / 0.1);
+}
+
+.dark .hover\:bg-amber-100:hover {
+  background-color: rgb(69 26 3 / 0.55);
+}
+
+.dark .border-amber-100,
+.dark .border-amber-200,
+.dark .border-amber-200\/50,
+.dark .border-amber-200\/70 {
+  border-color: rgb(180 83 9 / 0.28);
+}
+
+.dark .text-amber-950,
+.dark .text-amber-950\/80,
+.dark .text-amber-950\/90 {
+  color: #fde68a;
+}
+
+.dark .text-amber-900,
+.dark .text-amber-900\/70 {
+  color: rgb(252 211 77 / 0.92);
+}
+
+.dark .text-amber-800,
+.dark .text-amber-800\/70,
+.dark .text-amber-800\/80 {
+  color: rgb(251 191 36 / 0.88);
+}
+
+.dark .text-sky-950 {
+  color: #e0f2fe;
+}
+
+.dark .text-sky-800 {
+  color: #7dd3fc;
+}
+
+.dark .hover\:text-amber-900:hover,
+.dark .hover\:text-amber-950:hover {
+  color: #fef3c7;
+}
+
+.dark .ring-amber-400 {
+  --tw-ring-color: rgb(251 191 36 / 0.55);
 }
 
 .sefaria-commentary b,

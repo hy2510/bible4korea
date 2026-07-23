@@ -10,6 +10,7 @@ import {
   featuredLinkClassName,
   featuredPanelClassName,
 } from "@/lib/featured-panel";
+import { stripKoreanBibleQuotes } from "@/lib/korean-verse-text";
 import type { VerseOfDay } from "@/lib/verse-of-day";
 
 const verseOfDaySectionClassName = `mb-13 ${featuredPanelClassName} p-6 sm:p-8`;
@@ -47,7 +48,7 @@ export function VerseOfDay() {
         오늘의 말씀
       </p>
       <blockquote className={`text-lg sm:text-xl ${featuredBodyClassName}`}>
-        &ldquo;{verse.text}&rdquo;
+        &ldquo;{stripKoreanBibleQuotes(verse.text)}&rdquo;
       </blockquote>
       <footer className="mt-4 flex items-center justify-between">
         <cite className="not-italic text-sm font-medium text-stone-900">

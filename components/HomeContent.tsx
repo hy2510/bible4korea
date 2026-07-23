@@ -32,8 +32,8 @@ export function HomeContent() {
           <span className="hidden sm:inline">한민족을 위한 원어 성경</span>
         </h1>
         <p className="mt-3 text-stone-600">
-          히브리어 · 헬라어 원전과 개역한글 성경을 한눈에 대조하며, 말씀을 더욱
-          깊이 탐구해 보세요.
+          히브리어 성경(구약)과 헬라어 성경(신약) 원문을 개역한글 성경과 한눈에
+          대조하며, Strong&apos;s 원전 분해로 말씀을 깊이 탐구해 보세요.
         </p>
         <Link
           href="/books"

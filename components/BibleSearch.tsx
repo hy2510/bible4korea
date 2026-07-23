@@ -13,6 +13,8 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { ChevronLeftIcon } from "@/components/ChevronIcons";
+import { lockBodyScroll, resetBodyScrollLock } from "@/lib/body-scroll-lock";
+import { stripKoreanBibleQuotes } from "@/lib/korean-verse-text";
 import { SAFE_AREA } from "@/lib/safe-area";
 import { parseStrongsQuery } from "@/lib/strongs-links";
 
@@ -55,20 +57,21 @@ type SearchData =
     };
 
 function highlightText(text: string, query: string) {
+  const displayText = stripKoreanBibleQuotes(text);
   const terms = query.trim().split(/\s+/).filter(Boolean);
-  if (terms.length === 0) return text;
+  if (terms.length === 0) return displayText;
 
   const pattern = new RegExp(
     `(${terms.map((term) => term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})`,
     "gi",
   );
 
-  const parts = text.split(pattern);
+  const parts = displayText.split(pattern);
   return parts.map((part, index) =>
     index % 2 === 1 ? (
       <mark
         key={`${part}-${index}`}
-        className="rounded bg-amber-200/80 px-0.5 text-stone-900"
+        className="rounded bg-amber-100/90 px-0.5 text-amber-950 dark:bg-amber-900/40 dark:text-amber-100"
       >
         {part}
       </mark>
@@ -175,8 +178,7 @@ export function BibleSearchDialog({
   useEffect(() => {
     if (!open) return;
 
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    const unlock = lockBodyScroll();
     const timer = window.setTimeout(() => inputRef.current?.focus(), 0);
 
     const onKeyDown = (event: KeyboardEvent) => {
@@ -186,7 +188,7 @@ export function BibleSearchDialog({
     window.addEventListener("keydown", onKeyDown);
 
     return () => {
-      document.body.style.overflow = previousOverflow;
+      unlock();
       window.clearTimeout(timer);
       window.removeEventListener("keydown", onKeyDown);
     };
@@ -260,24 +262,26 @@ export function BibleSearchDialog({
   };
 
   const handleResultClick = (result: SearchResult) => {
+    window.dispatchEvent(new Event("bible4korea:close-overlays"));
     onClose();
     const strongs = parseStrongsQuery(submittedQuery);
     const params = new URLSearchParams({ from: "search" });
     if (strongs) params.set("strongs", strongs);
-    router.push(
-      `/read/${result.bookSlug}/${result.chapter}?${params.toString()}#verse-${result.verse}`,
-    );
+    const href = `/read/${result.bookSlug}/${result.chapter}?${params.toString()}#verse-${result.verse}`;
+    // Let nested modal unlock effects flush before navigating.
+    window.setTimeout(() => {
+      resetBodyScrollLock();
+      router.push(href);
+    }, 0);
   };
 
   if (!open) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-stretch justify-center p-0 sm:items-center sm:p-6">
-      <button
-        type="button"
-        aria-label="검색 닫기"
-        className="absolute inset-0 hidden cursor-default bg-stone-900/40 backdrop-blur-[1px] sm:block"
-        onClick={handleClose}
+    <div className="fixed inset-0 z-[60] flex items-stretch justify-center p-0 sm:items-center sm:p-6">
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 hidden bg-stone-900/40 backdrop-blur-[1px] sm:block"
       />
 
       <div
@@ -439,6 +443,7 @@ export function BibleSearchDialog({
 
 interface BibleSearchContextValue {
   openSearch: (query?: string) => void;
+  isSearchOpen: boolean;
 }
 
 const BibleSearchContext = createContext<BibleSearchContextValue | null>(null);
@@ -465,8 +470,9 @@ export function BibleSearchProvider({ children }: { children: ReactNode }) {
   const contextValue = useMemo(
     () => ({
       openSearch,
+      isSearchOpen: open,
     }),
-    [openSearch],
+    [openSearch, open],
   );
 
   return (

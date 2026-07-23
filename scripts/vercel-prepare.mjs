@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import Database from "better-sqlite3";
+import { ensureStrongsRootKey } from "./ensure-strongs-root-key.mjs";
 
 const DB_PATH = path.join("data", "strongs-hebrew-ko.sqlite");
 const SEARCH_DB_PATH = path.join("data", "bible-search.sqlite");
@@ -15,6 +16,22 @@ function run(command, args) {
 if (!fs.existsSync(DB_PATH)) {
   console.log("Preparing Strong's Korean database...");
   run("npm", ["run", "db:setup-strongs-ko"]);
+} else {
+  const db = new Database(DB_PATH);
+  const columns = db.prepare(`PRAGMA table_info(strongs_hebrew)`).all();
+  db.close();
+  const hasGematria = columns.some((column) => column.name === "gematria");
+  if (!hasGematria) {
+    console.log("Updating Strong's database with gematria values...");
+    run("npm", ["run", "db:import-strongs-ko"]);
+  }
+
+  const rootKeyResult = ensureStrongsRootKey(DB_PATH);
+  if (rootKeyResult.updated) {
+    console.log(
+      `Updated Strong's root_key for ${rootKeyResult.count ?? 0} entries.`,
+    );
+  }
 }
 
 if (!fs.existsSync(MORPHGNT_DIR) || !fs.existsSync(LEMMA_MAP_PATH)) {

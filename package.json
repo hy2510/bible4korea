@@ -9,6 +9,7 @@
     "lint": "eslint",
     "db:setup-strongs-ko": "node scripts/setup-strongs-ko.mjs",
     "db:import-strongs-ko": "node scripts/import-strongs-ko.mjs",
+    "db:ensure-strongs-root": "node scripts/ensure-strongs-root-key.mjs",
     "db:setup-morphgnt": "node scripts/setup-morphgnt.mjs",
     "db:setup-bible-search": "node scripts/build-bible-search.mjs",
     "db:setup-strongs-search": "node scripts/build-strongs-index.mjs"
@@ -17,7 +18,7 @@
     "@tailwindcss/postcss": "^4.3.2",
     "better-sqlite3": "^12.11.1",
     "morphhb": "^2.0.2",
-    "next": "16.2.10",
+    "next": "^16.2.10",
     "react": "19.2.4",
     "react-dom": "19.2.4"
   },

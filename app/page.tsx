@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { HomeContent } from "@/components/HomeContent";
-import { createPageMetadata, SITE_DESCRIPTION, SITE_NAME } from "@/lib/seo";
+import { createPageMetadata, SITE_DESCRIPTION } from "@/lib/seo";
 
 export const metadata: Metadata = createPageMetadata({
-  title: SITE_NAME,
   description: SITE_DESCRIPTION,
   path: "/",
 });

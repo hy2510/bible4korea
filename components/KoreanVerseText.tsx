@@ -1,13 +1,17 @@
 "use client";
 
+import { stripKoreanBibleQuotes } from "@/lib/korean-verse-text";
+
 interface KoreanVerseTextProps {
   text: string;
   onSelect?: () => void;
 }
 
 export function KoreanVerseText({ text, onSelect }: KoreanVerseTextProps) {
+  const displayText = stripKoreanBibleQuotes(text);
+
   if (!onSelect) {
-    return <span>{text}</span>;
+    return <span>{displayText}</span>;
   }
 
   const handleClick = () => {
@@ -27,7 +31,7 @@ export function KoreanVerseText({ text, onSelect }: KoreanVerseTextProps) {
       }}
       className="cursor-pointer rounded-sm transition-colors hover:bg-amber-50/80"
     >
-      {text}
+      {displayText}
     </span>
   );
 }

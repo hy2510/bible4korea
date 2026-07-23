@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { SiteLogo } from "@/components/SiteLogo";
 import { featuredLabelLightTextClassName } from "@/lib/featured-panel";
+import { SITE_NAME } from "@/lib/seo";
 
 export function HeaderBrand() {
   const pathname = usePathname();
@@ -14,7 +15,7 @@ export function HeaderBrand() {
   return (
     <Link
       href="/"
-      aria-label="홈"
+      aria-label={SITE_NAME}
       className={`group flex items-center rounded-lg transition-colors ${
         isHome
           ? ""

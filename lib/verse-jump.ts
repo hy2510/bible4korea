@@ -1,15 +1,13 @@
 const HIGHLIGHT_DURATION_MS = 2000;
 const MAX_ATTEMPTS = 60;
+const VERSE_JUMP_HIGHLIGHT_CLASS = "verse-jump-highlight";
 
 export interface VerseJumpOptions {
   behavior?: ScrollBehavior;
 }
 
 function clearVerseHighlight(target: HTMLElement) {
-  target.style.removeProperty("background-color");
-  target.style.removeProperty("border-color");
-  target.style.removeProperty("box-shadow");
-  target.style.removeProperty("transition");
+  target.classList.remove(VERSE_JUMP_HIGHLIGHT_CLASS);
 }
 
 export function clearAllVerseHighlights() {
@@ -29,12 +27,7 @@ export function highlightAndScrollToVerse(
 
   clearAllVerseHighlights();
   target.scrollIntoView({ block: "start", behavior });
-
-  target.style.transition =
-    "background-color 0.5s ease, border-color 0.5s ease, box-shadow 0.5s ease";
-  target.style.backgroundColor = "rgb(255 251 235 / 0.95)";
-  target.style.borderColor = "rgb(251 191 36 / 0.7)";
-  target.style.boxShadow = "0 0 0 3px rgb(251 191 36 / 0.25)";
+  target.classList.add(VERSE_JUMP_HIGHLIGHT_CLASS);
 
   const timeoutId = window.setTimeout(() => {
     clearVerseHighlight(target);

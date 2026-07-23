@@ -10,7 +10,7 @@ import { createPageMetadata } from "@/lib/seo";
 export const metadata: Metadata = createPageMetadata({
   title: "성경 목차",
   description:
-    "한민족 원어 성경 성경 목차 — 히브리어 성경·헬라어 원문과 개역한글판을 대조하고, 원전 분해로 66권 전체를 탐색해 보세요.",
+    "한민족 원어 성경 목차 — 히브리어 성경(구약)·헬라어 성경(신약) 원문과 개역한글판을 대조하고, 원전 분해로 66권 전체를 탐색해 보세요.",
   path: "/books",
 });
 

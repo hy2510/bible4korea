@@ -7,7 +7,7 @@ import { SAFE_AREA } from "@/lib/safe-area";
 export function Header() {
   return (
     <header
-      className={`notranslate sticky top-0 z-10 border-b border-border bg-background/90 backdrop-blur-md ${SAFE_AREA.top}`}
+      className={`notranslate sticky top-0 z-10 border-b border-border bg-background ${SAFE_AREA.top}`}
     >
       <div
         className={`mx-auto flex h-14 max-w-5xl items-center justify-between ${SAFE_AREA.x}`}

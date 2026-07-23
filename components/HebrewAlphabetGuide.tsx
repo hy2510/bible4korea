@@ -20,8 +20,10 @@ export function HebrewAlphabetGuide() {
         </p>
       </header>
 
-      <div className="flex flex-col gap-1 rounded-xl border border-amber-200/70 bg-amber-50/60 px-4 py-3 text-sm leading-relaxed text-amber-950/80 sm:flex-row sm:gap-2">
-        <strong className="font-semibold text-amber-950">읽는 방법</strong>
+      <div className="flex flex-col gap-1 rounded-xl border border-amber-200/70 bg-amber-50/60 px-4 py-3 text-sm leading-relaxed text-amber-950/80 sm:flex-row sm:gap-2 dark:border-amber-800/40 dark:bg-amber-950/40 dark:text-amber-100/85">
+        <strong className="font-semibold text-amber-950 dark:text-amber-100">
+          읽는 방법
+        </strong>
         <span>
           문자 → 이름 → 수치 → 고대 그림 → 핵심 의미 순서로 비교해 보세요.
         </span>
