@@ -16,7 +16,6 @@ import {
   type SefariaCommentatorGroup,
 } from "@/lib/sefaria";
 import { SAFE_AREA } from "@/lib/safe-area";
-import { stripHtml } from "@/lib/translate-ko";
 
 interface SefariaCommentaryModalProps {
   open: boolean;
@@ -91,7 +90,7 @@ function CommentarySegment({ commentary }: { commentary: SefariaCommentary }) {
 
   const getDisplayText = () => {
     if (showKorean && translatedText) return translatedText;
-    return stripHtml(commentary.text);
+    return commentary.text;
   };
 
   const handleCopy = async () => {
@@ -190,11 +189,12 @@ function CommentarySegment({ commentary }: { commentary: SefariaCommentary }) {
             {translatedText}
           </p>
         ) : (
-          <div
-            className="sefaria-commentary text-sm leading-relaxed text-foreground"
+          <p
+            className="sefaria-commentary whitespace-pre-wrap text-sm leading-relaxed text-foreground"
             lang="en"
-            dangerouslySetInnerHTML={{ __html: commentary.text }}
-          />
+          >
+            {commentary.text}
+          </p>
         )}
       </div>
 

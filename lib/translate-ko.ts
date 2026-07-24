@@ -1,27 +1,7 @@
+import { stripHtml } from "@/lib/html-text";
+
 const MAX_CHUNK_LENGTH = 4500;
-
-function decodeHtmlEntities(text: string): string {
-  return text
-    .replace(/&nbsp;/gi, " ")
-    .replace(/&amp;/gi, "&")
-    .replace(/&lt;/gi, "<")
-    .replace(/&gt;/gi, ">")
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;/gi, "'");
-}
-
-export function stripHtml(html: string): string {
-  return decodeHtmlEntities(
-    html
-      .replace(/<br\s*\/?>/gi, "\n")
-      .replace(/<\/p>/gi, "\n")
-      .replace(/<[^>]+>/g, " ")
-      .replace(/\s+\n/g, "\n")
-      .replace(/\n{3,}/g, "\n\n")
-      .replace(/[ \t]+/g, " ")
-      .trim(),
-  );
-}
+const TRANSLATION_TIMEOUT_MS = 10_000;
 
 function splitTextForTranslation(text: string): string[] {
   if (text.length <= MAX_CHUNK_LENGTH) return [text];
@@ -61,6 +41,7 @@ async function translateChunk(text: string): Promise<string> {
         "User-Agent": "bible4korea/1.0",
       },
       next: { revalidate: 86400 },
+      signal: AbortSignal.timeout(TRANSLATION_TIMEOUT_MS),
     },
   );
 

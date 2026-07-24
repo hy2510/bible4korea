@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { searchBookGroups, searchVerses } from "@/lib/bible-search";
 
 export const dynamic = "force-dynamic";
+const DEFAULT_PAGE_SIZE = 10;
+const MAX_PAGE_SIZE = 100;
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -9,7 +11,7 @@ export async function GET(request: Request) {
   const book = searchParams.get("book")?.trim() ?? "";
   const page = Number.parseInt(searchParams.get("page") ?? "1", 10);
   const pageSize = Number.parseInt(
-    searchParams.get("pageSize") ?? "10",
+    searchParams.get("pageSize") ?? String(DEFAULT_PAGE_SIZE),
     10,
   );
 
@@ -21,7 +23,9 @@ export async function GET(request: Request) {
   }
 
   const safePageSize =
-    Number.isInteger(pageSize) && pageSize > 0 ? pageSize : 10;
+    Number.isInteger(pageSize) && pageSize > 0
+      ? Math.min(pageSize, MAX_PAGE_SIZE)
+      : DEFAULT_PAGE_SIZE;
 
   const results = book
     ? searchVerses(query, page, safePageSize, book)

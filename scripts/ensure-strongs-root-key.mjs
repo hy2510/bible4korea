@@ -47,19 +47,29 @@ export function ensureStrongsRootKey(dbPath = DB_PATH) {
     }
 
     const rows = db
-      .prepare(`SELECT number, original FROM strongs_hebrew`)
+      .prepare(
+        `SELECT number, original FROM strongs_hebrew
+         WHERE root_key = '' AND original != ''`,
+      )
       .all();
     const update = db.prepare(
       `UPDATE strongs_hebrew SET root_key = ? WHERE number = ?`,
     );
     const populate = db.transaction((entries) => {
+      let updated = 0;
       for (const row of entries) {
-        update.run(extractHebrewRootKey(row.original), row.number);
+        const rootKey = extractHebrewRootKey(row.original);
+        if (!rootKey) continue;
+        update.run(rootKey, row.number);
+        updated += 1;
       }
+      return updated;
     });
-    populate(rows);
+    const updated = populate(rows);
 
-    return { updated: true, count: rows.length };
+    return updated > 0
+      ? { updated: true, count: updated }
+      : { updated: false, reason: "no-extractable-roots" };
   } finally {
     db.close();
   }

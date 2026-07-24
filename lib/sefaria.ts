@@ -1,3 +1,5 @@
+import { stripHtml } from "@/lib/html-text";
+
 export interface SefariaLink {
   _id: string;
   index_title: string;
@@ -155,7 +157,9 @@ export function mapCommentaryLinks(links: SefariaLink[]): SefariaCommentary[] {
   for (const link of links) {
     if (!hasEnglishCommentary(link)) continue;
 
-    const text = normalizeSefariaField(link.text);
+    const rawText = normalizeSefariaField(link.text);
+    if (!rawText) continue;
+    const text = stripHtml(rawText);
     if (!text) continue;
 
     commentaries.push({
