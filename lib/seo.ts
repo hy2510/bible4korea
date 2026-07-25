@@ -150,6 +150,11 @@ export const rootMetadata: Metadata = {
       "max-snippet": -1,
     },
   },
+  verification: {
+    other: {
+      "naver-site-verification": "108042b181d643d83321c81e1eddc0c4ddbc08b2",
+    },
+  },
   appleWebApp: {
     capable: true,
     title: SITE_SHORT_NAME,
