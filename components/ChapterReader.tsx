@@ -1,8 +1,23 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
+import { useRouter } from "next/navigation";
 import { saveLastReadChapter } from "@/lib/last-read";
 import type { BibleBook } from "@/lib/bible-api";
+import {
+  getPronunciationProgressSnapshot,
+  getServerPronunciationProgressSnapshot,
+  isPronunciationVerseCompleted,
+  setPronunciationVerseCompleted,
+  subscribeToPronunciationProgress,
+} from "@/lib/pronunciation-progress";
 import type { ChapterVerse } from "@/lib/verse-types";
 import {
   getStoredVerseViewMode,
@@ -18,6 +33,7 @@ import { ChapterNav } from "@/components/ChapterNav";
 import { SefariaCommentaryModal } from "@/components/SefariaCommentaryModal";
 import { VerseDisplay } from "@/components/VerseDisplay";
 import { VerseNav } from "@/components/VerseNav";
+import { VersePronunciationPractice } from "@/components/VersePronunciationPractice";
 
 function subscribeToHash(onStoreChange: () => void) {
   window.addEventListener("hashchange", onStoreChange);
@@ -61,6 +77,7 @@ export function ChapterReader({
   highlightStrongs,
   jumpFromSearch = false,
 }: ChapterReaderProps) {
+  const router = useRouter();
   const [viewMode, setViewMode] = useState<VerseViewMode>(() =>
     getStoredVerseViewMode(),
   );
@@ -74,14 +91,29 @@ export function ChapterReader({
     const hashVerse = getVerseFromHash();
     return hashVerse ?? 1;
   });
+  const [pronunciationProgress, setPronunciationProgress] = useState<{
+    bookSlug: string;
+    chapter: number;
+    verseNum: number;
+    characterCount: number;
+  } | null>(null);
+  const [pronunciationPanelOpen, setPronunciationPanelOpen] = useState(false);
+  const [pronunciationAutoStartVerse, setPronunciationAutoStartVerse] =
+    useState<number | null>(null);
   const topVerseNavRef = useRef<HTMLDivElement>(null);
   const scrollToTopNavOnVerseChange = useRef(false);
+  const pendingPronunciationScrollVerseRef = useRef<number | null>(null);
   const fullHashJumpCleanupRef = useRef<(() => void) | null>(null);
   const pendingInternalHashRef = useRef<string | null>(null);
   const hash = useSyncExternalStore(
     subscribeToHash,
     getHashSnapshot,
     getServerHashSnapshot,
+  );
+  const pronunciationProgressSnapshot = useSyncExternalStore(
+    subscribeToPronunciationProgress,
+    getPronunciationProgressSnapshot,
+    getServerPronunciationProgressSnapshot,
   );
   const jumpBehavior: ScrollBehavior =
     jumpFromSearch || getVerseFromHash() ? "instant" : "smooth";
@@ -192,6 +224,55 @@ export function ChapterReader({
   }, [currentVerse, viewMode]);
 
   useLayoutEffect(() => {
+    if (
+      viewMode !== "single" ||
+      pendingPronunciationScrollVerseRef.current !== null
+    ) {
+      return;
+    }
+
+    const hashVerse = getVerseFromHash();
+    if (!hashVerse) return;
+
+    const verseNum = clampVerse(hashVerse, verses.length);
+    if (verseNum !== currentVerse || !verses[verseNum - 1]) return;
+
+    scrollToTopNavOnVerseChange.current = false;
+    const frameId = window.requestAnimationFrame(() => {
+      document.getElementById(`verse-${verseNum}`)?.scrollIntoView({
+        block: "center",
+        behavior: "smooth",
+      });
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [viewMode, currentVerse, verses, bookSlug, chapter, hash]);
+
+  useLayoutEffect(() => {
+    const verseNum = pendingPronunciationScrollVerseRef.current;
+    if (
+      viewMode !== "single" ||
+      !pronunciationPanelOpen ||
+      verseNum === null ||
+      verseNum !== currentVerse
+    ) {
+      return;
+    }
+
+    pendingPronunciationScrollVerseRef.current = null;
+    scrollToTopNavOnVerseChange.current = false;
+
+    const frameId = window.requestAnimationFrame(() => {
+      document.getElementById(`verse-${verseNum}`)?.scrollIntoView({
+        block: "center",
+        behavior: "smooth",
+      });
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [viewMode, currentVerse, pronunciationPanelOpen]);
+
+  useLayoutEffect(() => {
     if (viewMode !== "full") return;
 
     const hashVerse = getVerseFromHash();
@@ -257,8 +338,49 @@ export function ChapterReader({
     goToVerse(verseNum);
   };
 
+  const handleOpenPronunciationPractice = (verseNum: number) => {
+    pendingPronunciationScrollVerseRef.current = verseNum;
+    setPronunciationAutoStartVerse(null);
+    setPronunciationPanelOpen(true);
+
+    if (viewMode === "full") {
+      setViewMode("single");
+      setStoredVerseViewMode("single");
+    }
+
+    goToVerse(verseNum);
+    scrollToTopNavOnVerseChange.current = false;
+  };
+
   const currentVerseData = verses[currentVerse - 1];
   const isSingle = viewMode === "single";
+  const handlePronunciationCharacterProgressChange = useCallback(
+    (characterCount: number | null) => {
+      setPronunciationProgress(
+        characterCount === null
+          ? null
+          : {
+              bookSlug,
+              chapter,
+              verseNum: currentVerse,
+              characterCount,
+            },
+      );
+    },
+    [bookSlug, chapter, currentVerse],
+  );
+  const handlePronunciationCompletionChange = useCallback(
+    (verseNum: number, completed: boolean, koreanText: string) => {
+      setPronunciationVerseCompleted(
+        bookSlug,
+        chapter,
+        verseNum,
+        completed,
+        koreanText,
+      );
+    },
+    [bookSlug, chapter],
+  );
 
   const sefariaProps = {
     hasSefariaCommentary: (verseNum: number) =>
@@ -314,15 +436,32 @@ export function ChapterReader({
 
       <div className="space-y-1">
         {isSingle && currentVerseData ? (
-          <VerseDisplay
-            key={currentVerseData.verseNum}
-            {...currentVerseData}
-            highlightStrongs={highlightStrongs}
-            hasSefariaCommentary={sefariaProps.hasSefariaCommentary(
-              currentVerseData.verseNum,
-            )}
-            onOpenSefariaCommentary={sefariaProps.onOpenSefariaCommentary}
-          />
+          <>
+            <VerseDisplay
+              key={currentVerseData.verseNum}
+              {...currentVerseData}
+              highlightStrongs={highlightStrongs}
+              pronunciationCharacterCount={
+                pronunciationProgress?.bookSlug === bookSlug &&
+                pronunciationProgress.chapter === chapter &&
+                pronunciationProgress.verseNum === currentVerseData.verseNum
+                  ? pronunciationProgress.characterCount
+                  : 0
+              }
+              pronunciationCompleted={isPronunciationVerseCompleted(
+                pronunciationProgressSnapshot,
+                bookSlug,
+                chapter,
+                currentVerseData.verseNum,
+              )}
+              pronunciationPanelOpen={pronunciationPanelOpen}
+              onOpenPronunciationPractice={handleOpenPronunciationPractice}
+              hasSefariaCommentary={sefariaProps.hasSefariaCommentary(
+                currentVerseData.verseNum,
+              )}
+              onOpenSefariaCommentary={sefariaProps.onOpenSefariaCommentary}
+            />
+          </>
         ) : (
           verses.map((verse) => (
             <VerseDisplay
@@ -330,6 +469,13 @@ export function ChapterReader({
               {...verse}
               highlightStrongs={highlightStrongs}
               onVerseSelect={handleVerseSelect}
+              pronunciationCompleted={isPronunciationVerseCompleted(
+                pronunciationProgressSnapshot,
+                bookSlug,
+                chapter,
+                verse.verseNum,
+              )}
+              onOpenPronunciationPractice={handleOpenPronunciationPractice}
               hasSefariaCommentary={sefariaProps.hasSefariaCommentary(
                 verse.verseNum,
               )}
@@ -338,6 +484,44 @@ export function ChapterReader({
           ))
         )}
       </div>
+
+      {isSingle &&
+        currentVerseData &&
+        pronunciationPanelOpen && (
+          <VersePronunciationPractice
+            key={`${bookSlug}-${chapter}-${currentVerseData.verseNum}`}
+            bookName={bookName}
+            chapter={chapter}
+            verseNum={currentVerseData.verseNum}
+            text={currentVerseData.korean}
+            onCharacterProgressChange={
+              handlePronunciationCharacterProgressChange
+            }
+            onCompletionChange={(completed) =>
+              handlePronunciationCompletionChange(
+                currentVerseData.verseNum,
+                completed,
+                currentVerseData.korean,
+              )
+            }
+            onClose={() => setPronunciationPanelOpen(false)}
+            hasNextVerse={currentVerse < verses.length}
+            onNextVerse={() => {
+              const nextVerse = currentVerse + 1;
+              setPronunciationAutoStartVerse(nextVerse);
+              goToVerse(nextVerse);
+            }}
+            hasNextChapter={chapter < book.chapters}
+            onNextChapter={() => {
+              setPronunciationAutoStartVerse(null);
+              router.push(`/read/${bookSlug}/${chapter + 1}#verse-1`, {
+                scroll: false,
+              });
+            }}
+            autoStart={pronunciationAutoStartVerse === currentVerse}
+            onAutoStartHandled={() => setPronunciationAutoStartVerse(null)}
+          />
+        )}
 
       {isSingle && (
         <VerseNav

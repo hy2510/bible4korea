@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { BookGrid } from "@/components/BookGrid";
 import { getBooks } from "@/lib/bible-api";
+import { getBibleVerseCounts } from "@/lib/bible-search";
 import {
   groupNewTestamentBySection,
   groupOldTestamentByTanakh,
@@ -16,6 +17,7 @@ export const metadata: Metadata = createPageMetadata({
 
 export default async function BooksPage() {
   const books = await getBooks();
+  const bibleVerseCounts = getBibleVerseCounts();
   const tanakhSections = groupOldTestamentByTanakh(
     books.filter((b) => b.testament === "old"),
   );
@@ -34,6 +36,7 @@ export default async function BooksPage() {
             <BookGrid
               key={section.id}
               books={sectionBooks}
+              bibleVerseCounts={bibleVerseCounts}
               title={`${section.title} (${section.subtitle})`}
             />
           ))}
@@ -44,6 +47,7 @@ export default async function BooksPage() {
             <BookGrid
               key={section.id}
               books={sectionBooks}
+              bibleVerseCounts={bibleVerseCounts}
               title={`${section.title} (${section.subtitle})`}
             />
           ))}

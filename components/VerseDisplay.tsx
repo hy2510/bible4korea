@@ -4,15 +4,25 @@ import { memo } from "react";
 import { LinkIcon } from "@/components/ChevronIcons";
 import { OriginalWordRow } from "@/components/OriginalWordRow";
 import { KoreanVerseText } from "@/components/KoreanVerseText";
+import {
+  CheckIcon,
+  MicrophoneIcon,
+} from "@/components/PronunciationIcons";
 import type { ChapterVerse } from "@/lib/verse-types";
 import {
   getGreekStrongsDictionaryUrl,
   getHebrewStrongsDictionaryUrl,
 } from "@/lib/strongs-links";
 
+const SHOW_SEFARIA_COMMENTARY_BUTTON = false;
+
 interface VerseDisplayProps extends ChapterVerse {
   onVerseSelect?: (verseNum: number) => void;
   highlightStrongs?: string;
+  pronunciationCharacterCount?: number;
+  pronunciationCompleted?: boolean;
+  pronunciationPanelOpen?: boolean;
+  onOpenPronunciationPractice?: (verseNum: number) => void;
   hasSefariaCommentary?: boolean;
   onOpenSefariaCommentary?: (verseNum: number) => void;
 }
@@ -24,6 +34,10 @@ function VerseDisplayComponent({
   greekWords,
   onVerseSelect,
   highlightStrongs,
+  pronunciationCharacterCount,
+  pronunciationCompleted = false,
+  pronunciationPanelOpen = false,
+  onOpenPronunciationPractice,
   hasSefariaCommentary = false,
   onOpenSefariaCommentary,
 }: VerseDisplayProps) {
@@ -42,11 +56,14 @@ function VerseDisplayComponent({
         </sup>
         <KoreanVerseText
           text={korean}
+          pronunciationCharacterCount={pronunciationCharacterCount}
           onSelect={
             onVerseSelect ? () => onVerseSelect(verseNum) : undefined
           }
         />
-        {hasSefariaCommentary && onOpenSefariaCommentary && (
+        {SHOW_SEFARIA_COMMENTARY_BUTTON &&
+          hasSefariaCommentary &&
+          onOpenSefariaCommentary && (
           <button
             type="button"
             aria-label={`${verseNum}절 Sefaria 주석 보기`}
@@ -57,6 +74,30 @@ function VerseDisplayComponent({
             className="ms-1.5 inline-flex translate-y-px cursor-pointer items-center rounded-md p-0.5 text-amber-700/70 transition-colors hover:bg-amber-100/80 hover:text-amber-900 dark:text-amber-500/70 dark:hover:bg-stone-800/80 dark:hover:text-amber-400"
           >
             <LinkIcon className="h-3.5 w-3.5" />
+          </button>
+          )}
+        {onOpenPronunciationPractice && (
+          <button
+            type="button"
+            aria-label={
+              pronunciationCompleted
+                ? `${verseNum}절 소리 내어 읽기 완료, 다시 열기`
+                : `${verseNum}절 소리 내어 읽기`
+            }
+            aria-expanded={pronunciationPanelOpen}
+            aria-controls={`pronunciation-panel-${verseNum}`}
+            onClick={(event) => {
+              event.stopPropagation();
+              onOpenPronunciationPractice(verseNum);
+            }}
+            className={`ms-1.5 inline-flex translate-y-0.5 cursor-pointer items-center justify-center text-amber-800 transition-colors dark:text-amber-400 ${
+              pronunciationCompleted
+                ? "gap-0.5 rounded-full border border-emerald-600 px-1.5 py-0.5 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-500 dark:text-emerald-400 dark:hover:bg-emerald-950/30"
+                : "rounded-full p-0.5 hover:bg-amber-100/80 hover:text-amber-950 dark:hover:bg-stone-800/80 dark:hover:text-amber-300"
+            }`}
+          >
+            <MicrophoneIcon className="h-4 w-4" />
+            {pronunciationCompleted && <CheckIcon className="h-3.5 w-3.5" />}
           </button>
         )}
       </p>

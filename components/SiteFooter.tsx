@@ -98,12 +98,20 @@ export function SiteFooter() {
           헬라어(MorphGNT/SBLGNT) · Strong&apos;s (LOG) | 개발 참여: 호열과
           사랑하는 라엘 · 준범 · 준서
         </p>
-        <Link
-          href="/licenses"
-          className="text-xs text-muted underline-offset-2 transition-colors hover:text-foreground hover:underline"
-        >
-          오픈 소스 라이선스
-        </Link>
+        <div className="flex flex-col items-center gap-2">
+          <Link
+            href="/licenses"
+            className="text-xs text-muted underline-offset-2 transition-colors hover:text-foreground hover:underline"
+          >
+            오픈 소스 라이선스
+          </Link>
+          <Link
+            href="/reading-history"
+            className="text-xs text-muted underline-offset-2 transition-colors hover:text-rose-700 hover:underline dark:hover:text-rose-400"
+          >
+            기록 관리
+          </Link>
+        </div>
       </div>
     </footer>
   );

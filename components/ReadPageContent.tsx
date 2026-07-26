@@ -1,11 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { BookSelector } from "@/components/BookSelector";
 import { ChapterReader } from "@/components/ChapterReader";
 import { ChapterSelector } from "@/components/ChapterSelector";
 import { fetchChapter } from "@/lib/bible-api-browser";
 import type { BibleBook, GreekWord, HebrewWord } from "@/lib/bible-api";
+import {
+  getChapterPronunciationProgress,
+  getPronunciationProgressSnapshot,
+  getServerPronunciationProgressSnapshot,
+  setPronunciationChapterVerseCount,
+  subscribeToPronunciationProgress,
+} from "@/lib/pronunciation-progress";
 import type { ChapterVerse } from "@/lib/verse-types";
 
 interface MorphologyResponse {
@@ -30,6 +37,16 @@ export function ReadPageContent({
 }: ReadPageContentProps) {
   const [verses, setVerses] = useState<ChapterVerse[] | null>(null);
   const [error, setError] = useState(false);
+  const pronunciationProgressSnapshot = useSyncExternalStore(
+    subscribeToPronunciationProgress,
+    getPronunciationProgressSnapshot,
+    getServerPronunciationProgressSnapshot,
+  );
+  const currentChapterProgress = getChapterPronunciationProgress(
+    pronunciationProgressSnapshot,
+    book.slug,
+    chapterNum,
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -59,6 +76,11 @@ export function ReadPageContent({
 
         if (cancelled) return;
 
+        setPronunciationChapterVerseCount(
+          book.slug,
+          chapterNum,
+          chapterData.verses.length,
+        );
         setVerses(
           chapterData.verses.map((text: string, index: number) => ({
             verseNum: index + 1,
@@ -89,7 +111,11 @@ export function ReadPageContent({
       </div>
 
       <section className="mb-8">
-        <ChapterSelector book={book} currentChapter={chapterNum} />
+        <ChapterSelector
+          book={book}
+          currentChapter={chapterNum}
+          pronunciationProgress={pronunciationProgressSnapshot}
+        />
       </section>
 
       <article className="mb-[50vh] rounded-2xl border border-stone-200/80 bg-white py-6 px-4 sm:p-10">
@@ -98,6 +124,35 @@ export function ReadPageContent({
             {book.name}
           </h1>
           <p className="mt-1 text-lg text-amber-800">{chapterNum}장</p>
+          {currentChapterProgress.totalVerses > 0 && (
+            <div className="mx-auto mt-3 max-w-48">
+              <div
+                role="progressbar"
+                aria-label={`${book.name} ${chapterNum}장 읽기 진행률`}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={currentChapterProgress.percentage}
+                className="h-1.5 overflow-hidden rounded-full bg-stone-100 dark:bg-stone-800"
+              >
+                <div
+                  className={`h-full rounded-full transition-[width] duration-500 ${
+                    currentChapterProgress.isComplete
+                      ? "bg-emerald-500"
+                      : "bg-amber-700"
+                  }`}
+                  style={{ width: `${currentChapterProgress.percentage}%` }}
+                />
+              </div>
+              <div className="mt-1.5 text-center text-[11px] text-stone-400">
+                <span>소리 내어 읽기 {currentChapterProgress.percentage}%</span>
+                {currentChapterProgress.isComplete && (
+                  <span className="ml-1.5 font-semibold text-emerald-700 dark:text-emerald-400">
+                    ✓ 읽기 완료
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
         </header>
 
         {error && (

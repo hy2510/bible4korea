@@ -11,6 +11,7 @@ export interface LastReadChapter {
   readAt: string;
 }
 
+const EMPTY_LAST_READ_CHAPTERS: LastReadChapter[] = [];
 let cachedEntries: LastReadChapter[] | null = null;
 
 if (typeof window !== "undefined") {
@@ -100,6 +101,64 @@ export function getLastReadChapters(): LastReadChapter[] {
   if (typeof window === "undefined") return [];
   if (cachedEntries) return cachedEntries;
   return readStoredEntries();
+}
+
+export function getServerLastReadChapters(): LastReadChapter[] {
+  return EMPTY_LAST_READ_CHAPTERS;
+}
+
+export function subscribeToLastReadChapters(
+  listener: () => void,
+): () => void {
+  const handleStorage = (event: StorageEvent) => {
+    if (event.key === LAST_READ_STORAGE_KEY) listener();
+  };
+
+  window.addEventListener(LAST_READ_UPDATED_EVENT, listener);
+  window.addEventListener("storage", handleStorage);
+
+  return () => {
+    window.removeEventListener(LAST_READ_UPDATED_EVENT, listener);
+    window.removeEventListener("storage", handleStorage);
+  };
+}
+
+export function clearLastReadChapters(): void {
+  if (typeof window === "undefined") return;
+
+  cachedEntries = [];
+
+  try {
+    localStorage.removeItem(LAST_READ_STORAGE_KEY);
+  } catch {
+    // 저장 공간에 접근할 수 없어도 현재 화면의 기록은 비웁니다.
+  }
+
+  notifyLastReadUpdated();
+}
+
+export function deleteLastReadBooks(bookSlugs: ReadonlySet<string>): void {
+  if (typeof window === "undefined" || bookSlugs.size === 0) return;
+
+  const current = getLastReadChapters();
+  const remaining = current.filter(
+    (entry) => !bookSlugs.has(entry.bookSlug),
+  );
+  if (remaining.length === current.length) return;
+
+  cachedEntries = remaining;
+
+  try {
+    if (remaining.length === 0) {
+      localStorage.removeItem(LAST_READ_STORAGE_KEY);
+    } else {
+      localStorage.setItem(LAST_READ_STORAGE_KEY, JSON.stringify(remaining));
+    }
+  } catch {
+    // 저장 공간에 접근할 수 없어도 현재 화면에서는 선택한 기록을 제외합니다.
+  }
+
+  notifyLastReadUpdated();
 }
 
 export function getLastReadHref(item: LastReadChapter): string {

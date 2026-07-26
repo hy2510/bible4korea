@@ -71,6 +71,25 @@ export function isSearchDbReady(): boolean {
   return fs.existsSync(DB_PATH);
 }
 
+export function getBibleVerseCounts(): Record<string, number> {
+  const database = getDb();
+  if (!database) return {};
+
+  const rows = database
+    .prepare(
+      `
+      SELECT book_slug AS bookSlug, COUNT(*) AS totalVerses
+      FROM verses
+      GROUP BY book_slug
+    `,
+    )
+    .all() as Array<{ bookSlug: string; totalVerses: number }>;
+
+  return Object.fromEntries(
+    rows.map(({ bookSlug, totalVerses }) => [bookSlug, totalVerses]),
+  );
+}
+
 function getStrongsQueryGloss(query: string): string | null {
   const strongs = parseStrongsQuery(query);
   if (!strongs) return null;
