@@ -11,7 +11,6 @@ import {
 import type { User } from "@supabase/supabase-js";
 import {
   clearStoredSessionVersion,
-  getStoredSessionVersion,
   getUserSessionVersion,
   normalizeSessionVersion,
   setStoredSessionVersion,
@@ -85,6 +84,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const nextUser = session?.user ?? null;
       const signedOutUserId = previousUserIdRef.current;
       previousUserIdRef.current = nextUser?.id ?? null;
+
+      if (event === "SIGNED_IN" && nextUser) {
+        setStoredSessionVersion(
+          nextUser.id,
+          getUserSessionVersion(nextUser),
+        );
+      }
+
       setUser(nextUser);
       setLoading(false);
 
@@ -119,9 +126,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!active || !session) return;
 
         const tokenVersion = getUserSessionVersion(session.user);
-        if (getStoredSessionVersion(userId) === null) {
-          setStoredSessionVersion(userId, tokenVersion);
-        }
+        setStoredSessionVersion(userId, tokenVersion);
 
         const response = await fetch("/api/auth/session-version", {
           headers: {
@@ -141,10 +146,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           valid?: boolean;
           version?: unknown;
         };
-        const expectedVersion =
-          getStoredSessionVersion(userId) ?? tokenVersion;
         const currentVersion = normalizeSessionVersion(data.version);
-        if (data.valid !== true || currentVersion !== expectedVersion) {
+        if (data.valid !== true || currentVersion !== tokenVersion) {
           await supabase.auth.signOut({ scope: "local" });
         }
       } catch {

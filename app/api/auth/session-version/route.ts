@@ -2,11 +2,28 @@ import {
   getUserSessionVersion,
   normalizeSessionVersion,
 } from "@/lib/auth/session-version";
-import { getAuthenticatedUser } from "@/lib/auth/request.server";
+import {
+  getAuthenticatedUser,
+  getBearerToken,
+} from "@/lib/auth/request.server";
+import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
+  const token = getBearerToken(request);
+  if (!token) {
+    return Response.json({ valid: false }, { status: 401 });
+  }
+
+  const supabase = getSupabaseAdminClient();
+  if (!supabase) {
+    return Response.json(
+      { message: "인증 서버 설정이 완료되지 않았습니다." },
+      { status: 503 },
+    );
+  }
+
   const authenticated = await getAuthenticatedUser(request);
   if (!authenticated) {
     return Response.json({ valid: false }, { status: 401 });
