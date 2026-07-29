@@ -1,27 +1,10 @@
-import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
   getUserSessionVersion,
   normalizeSessionVersion,
 } from "@/lib/auth/session-version";
+import { getAuthenticatedUser } from "@/lib/auth/request.server";
 
 export const dynamic = "force-dynamic";
-
-function getBearerToken(request: Request): string | null {
-  const authorization = request.headers.get("authorization");
-  if (!authorization?.startsWith("Bearer ")) return null;
-  return authorization.slice("Bearer ".length).trim() || null;
-}
-
-async function getAuthenticatedUser(request: Request) {
-  const token = getBearerToken(request);
-  const supabase = getSupabaseAdminClient();
-  if (!token || !supabase) return null;
-
-  const { data, error } = await supabase.auth.getUser(token);
-  if (error || !data.user) return null;
-
-  return { token, user: data.user, supabase };
-}
 
 export async function GET(request: Request) {
   const authenticated = await getAuthenticatedUser(request);

@@ -11,8 +11,6 @@ import {
   isValidPassword,
   PASSWORD_MAX_LENGTH,
   PASSWORD_MIN_LENGTH,
-  toInternalAccountEmail,
-  toSupabasePassword,
 } from "@/lib/auth/credentials";
 import {
   normalizeSessionVersion,
@@ -58,61 +56,47 @@ export function ProfileSettings() {
     }
 
     const supabase = getSupabaseBrowserClient();
-    const accountEmail =
-      user?.email ?? (username ? toInternalAccountEmail(username) : "");
-    if (!supabase || !accountEmail) {
+    if (!supabase || !user) {
       setMessage("비밀번호 변경 설정을 확인해 주세요.");
-      return;
-    }
-
-    setPending(true);
-    const { error: verificationError } =
-      await supabase.auth.signInWithPassword({
-        email: accountEmail,
-        password: toSupabasePassword(currentPassword),
-      });
-    if (verificationError) {
-      setPending(false);
-      setMessage("현재 비밀번호가 일치하지 않습니다.");
-      return;
-    }
-
-    const { error: updateError } = await supabase.auth.updateUser({
-      password: toSupabasePassword(newPassword),
-    });
-    setPending(false);
-
-    if (updateError) {
-      setMessage("비밀번호를 변경하지 못했습니다. 다시 시도해 주세요.");
       return;
     }
 
     const {
       data: { session },
     } = await supabase.auth.getSession();
-    const sessionVersionResponse = session
-      ? await fetch("/api/auth/session-version", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-          },
-        })
-      : null;
-    const sessionVersionData = sessionVersionResponse?.ok
-      ? ((await sessionVersionResponse.json()) as { version?: unknown })
-      : null;
+    if (!session) {
+      setMessage("로그인 세션을 확인할 수 없습니다. 다시 로그인해 주세요.");
+      return;
+    }
 
-    if (!user || !sessionVersionData) {
-      await supabase.auth.signOut({ scope: "local" });
+    setPending(true);
+    const response = await fetch("/api/auth/password/change", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        currentPassword,
+        newPassword,
+      }),
+    });
+    const data = (await response.json().catch(() => null)) as {
+      message?: string;
+      version?: unknown;
+    } | null;
+    setPending(false);
+
+    if (!response.ok) {
       setMessage(
-        "비밀번호는 변경됐지만 세션 보안을 갱신하지 못했습니다. 새 비밀번호로 다시 로그인해 주세요.",
+        data?.message ?? "비밀번호를 변경하지 못했습니다. 다시 시도해 주세요.",
       );
       return;
     }
 
     setStoredSessionVersion(
       user.id,
-      normalizeSessionVersion(sessionVersionData.version),
+      normalizeSessionVersion(data?.version),
     );
     await supabase.auth.refreshSession();
     setCurrentPassword("");

@@ -26,7 +26,7 @@ export function getSupabaseBrowserClient(): SupabaseClient<Database> | null {
   browserClient = createBrowserClient<Database>(url, publishableKey, {
     auth: {
       autoRefreshToken: true,
-      detectSessionInUrl: true,
+      detectSessionInUrl: false,
       persistSession: true,
     },
   });

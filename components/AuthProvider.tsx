@@ -38,7 +38,7 @@ import {
 import type { Json } from "@/lib/supabase/database.types";
 
 type SyncStatus = "idle" | "syncing" | "synced" | "error";
-const SESSION_VALIDATION_INTERVAL_MS = 60_000;
+const SESSION_VALIDATION_INTERVAL_MS = 5 * 60_000;
 
 interface AuthContextValue {
   user: User | null;
@@ -72,10 +72,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!supabase) return;
 
     let active = true;
-    void supabase.auth.getUser().then(({ data }) => {
+    void supabase.auth.getSession().then(({ data }) => {
       if (!active) return;
-      previousUserIdRef.current = data.user?.id ?? null;
-      setUser(data.user ?? null);
+      previousUserIdRef.current = data.session?.user?.id ?? null;
+      setUser(data.session?.user ?? null);
       setLoading(false);
     });
 
