@@ -531,20 +531,11 @@ export function UsernameAuth() {
             }
           }}
         >
-          <div className="mb-6 flex items-center justify-between gap-3">
-            <div>
-              <h2 className="font-semibold text-foreground">비밀번호 찾기</h2>
-              <p className="mt-1 text-sm text-muted">
-                가입할 때 등록한 질문으로 본인을 확인합니다.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => changeView("login")}
-              className="min-h-10 shrink-0 cursor-pointer px-2 text-sm text-muted hover:text-foreground"
-            >
-              로그인으로
-            </button>
+          <div className="mb-6">
+            <h2 className="font-semibold text-foreground">비밀번호 찾기</h2>
+            <p className="mt-1 text-sm text-muted">
+              가입할 때 등록한 질문으로 본인을 확인합니다.
+            </p>
           </div>
 
           {recoveryStep === "username" ? (

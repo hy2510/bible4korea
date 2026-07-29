@@ -455,10 +455,10 @@ export function VersePronunciationPractice({
               onClick={
                 status === "listening" ? stopRecognition : startRecognition
               }
-              className={`inline-flex min-h-11 w-full shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors disabled:cursor-wait disabled:opacity-60 ${
+              className={`inline-flex min-h-11 w-full shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-colors disabled:cursor-wait disabled:opacity-60 ${
                 status === "listening"
-                  ? "bg-rose-600 text-white hover:bg-rose-700"
-                  : "bg-amber-800 text-white hover:bg-amber-900 dark:bg-amber-700 dark:hover:bg-amber-600"
+                  ? "border-rose-600 bg-transparent text-rose-600 hover:bg-rose-50 dark:border-rose-400 dark:text-rose-400 dark:hover:bg-rose-950/30"
+                  : "border-transparent bg-amber-800 text-white hover:bg-amber-900 dark:bg-amber-700 dark:hover:bg-amber-600"
               }`}
               aria-label={
                 status === "listening"
@@ -468,7 +468,7 @@ export function VersePronunciationPractice({
             >
               <span className="relative">
                 {status === "listening" && (
-                  <span className="absolute inset-0 animate-ping rounded-full bg-white/50" />
+                  <span className="absolute inset-0 animate-ping rounded-full bg-rose-500/40" />
                 )}
                 <MicrophoneIcon className="relative h-5 w-5" />
               </span>

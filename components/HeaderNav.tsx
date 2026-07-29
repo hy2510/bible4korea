@@ -7,6 +7,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import { BibleSearchButton } from "@/components/BibleSearch";
 import { useDailyGoal } from "@/components/DailyGoalProvider";
+import { useUserNickname } from "@/components/useUserNickname";
 
 function navLinkClassName(active: boolean) {
   return `cursor-pointer rounded-lg px-3 py-1.5 text-sm font-bold transition-colors ${
@@ -37,7 +38,8 @@ function RefreshIcon() {
 export function HeaderNav() {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, username, loading, signOut } = useAuth();
+  const { user, loading, signOut } = useAuth();
+  const { displayName } = useUserNickname();
   const {
     achievedToday,
     loading: dailyGoalLoading,
@@ -49,7 +51,7 @@ export function HeaderNav() {
   const isBooks = pathname === "/books" || pathname.startsWith("/read/");
   const isLogin = pathname === "/login";
   const isProfile = pathname === "/profile";
-  const initial = (username?.trim().charAt(0) || "회").toUpperCase();
+  const initial = (displayName.trim().charAt(0) || "회").toUpperCase();
 
   useEffect(() => {
     if (!accountMenuOpen) return;
@@ -120,7 +122,7 @@ export function HeaderNav() {
           <div ref={menuRef} className="relative">
             <button
               type="button"
-              aria-label={`${username ?? "회원"} 회원 메뉴`}
+              aria-label={`${displayName} 회원 메뉴`}
               aria-haspopup="menu"
               aria-expanded={accountMenuOpen}
               onClick={() => setAccountMenuOpen((open) => !open)}
@@ -137,11 +139,11 @@ export function HeaderNav() {
               <div
                 role="menu"
                 aria-label="회원 메뉴"
-                className="absolute right-0 top-full mt-2 w-44 overflow-hidden rounded-xl border border-border bg-surface py-1.5 shadow-lg"
+                className="absolute right-0 top-full mt-2 w-44 overflow-hidden rounded-xl border border-border bg-surface shadow-lg"
               >
-                <div className="flex items-center gap-2 border-b border-border px-3 py-1.5">
+                <div className="flex items-center gap-2 border-b border-border bg-surface-muted px-3 py-2">
                   <span className="min-w-0 flex-1 truncate px-1 text-xs font-semibold text-muted">
-                    {username ?? "회원"}
+                    {displayName}
                   </span>
                   <button
                     type="button"
@@ -160,14 +162,14 @@ export function HeaderNav() {
                   onClick={() => setAccountMenuOpen(false)}
                   className="block cursor-pointer px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-surface-muted"
                 >
-                  프로필
+                  마이 프로필
                 </Link>
                 <button
                   type="button"
                   role="menuitem"
                   disabled={signOutPending}
                   onClick={() => void handleSignOut()}
-                  className="block w-full cursor-pointer px-4 py-2.5 text-left text-sm font-medium text-rose-700 transition-colors hover:bg-rose-50 disabled:cursor-wait disabled:opacity-60 dark:text-rose-400 dark:hover:bg-rose-950/30"
+                  className="block w-full cursor-pointer border-t border-border px-4 py-2.5 text-left text-sm font-medium text-rose-700 transition-colors hover:bg-rose-50 disabled:cursor-wait disabled:opacity-60 dark:text-rose-400 dark:hover:bg-rose-950/30"
                 >
                   {signOutPending ? "로그아웃 중…" : "로그아웃"}
                 </button>

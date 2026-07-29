@@ -3,6 +3,7 @@ import { Geist } from "next/font/google";
 import type { Metadata, Viewport } from "next";
 import { Header } from "@/components/Header";
 import { AuthProvider } from "@/components/AuthProvider";
+import { UserProfileProvider } from "@/components/UserProfileProvider";
 import { DailyGoalProvider } from "@/components/DailyGoalProvider";
 import { BibleSearchProvider } from "@/components/BibleSearch";
 import { PwaInstallPrompt } from "@/components/PwaInstallPrompt";
@@ -71,19 +72,21 @@ export default function RootLayout({
         <PreferencesScript />
         <ThemeProvider>
           <AuthProvider>
-            <DailyGoalProvider>
-              <ReadingFontSizeProvider>
-                <BibleSearchProvider>
-                  <SiteJsonLd />
-                  <Header />
-                  <main className="notranslate flex-1">{children}</main>
-                  <SiteFooter />
-                  <ScrollToTopButton />
-                  <PwaInstallPrompt />
-                  <ServiceWorkerRegister />
-                </BibleSearchProvider>
-              </ReadingFontSizeProvider>
-            </DailyGoalProvider>
+            <UserProfileProvider>
+              <DailyGoalProvider>
+                <ReadingFontSizeProvider>
+                  <BibleSearchProvider>
+                    <SiteJsonLd />
+                    <Header />
+                    <main className="notranslate flex-1">{children}</main>
+                    <SiteFooter />
+                    <ScrollToTopButton />
+                    <PwaInstallPrompt />
+                    <ServiceWorkerRegister />
+                  </BibleSearchProvider>
+                </ReadingFontSizeProvider>
+              </DailyGoalProvider>
+            </UserProfileProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

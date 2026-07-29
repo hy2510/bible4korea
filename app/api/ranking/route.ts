@@ -5,6 +5,8 @@ import {
   type ActivityRankingItem,
   type ActivityRankingResponse,
 } from "@/lib/activity-ranking";
+import { normalizeAffiliation } from "@/lib/user-affiliation";
+import { getUserDisplayName } from "@/lib/user-profile";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +24,11 @@ const DEVELOPMENT_SAMPLE_USERS = [
   { username: "mustardseed", readCount: 5 },
   { username: "bethany12", readCount: 4 },
   { username: "selah2026", readCount: 3 },
-] satisfies Array<Omit<ActivityRankingItem, "rank">>;
+] satisfies Array<{
+  username: string;
+  readCount: number;
+  affiliation?: string | null;
+}>;
 
 function parseNonNegativeInteger(value: string | null, fallback: number) {
   const parsed = Number.parseInt(value ?? "", 10);
@@ -45,12 +51,19 @@ export async function GET(request: Request) {
     DEFAULT_PAGE_SIZE,
   );
   const limit = Math.min(Math.max(requestedLimit, 1), MAX_PAGE_SIZE);
+  const affiliationFilter = normalizeAffiliation(
+    searchParams.get("affiliation") ?? "",
+  );
   const week = getCurrentKoreanWeekRange();
 
-  const [accountResult, readingResult] = await Promise.all([
+  const [accountResult, profileResult, readingResult] = await Promise.all([
     supabase
       .from("user_accounts")
       .select("user_id, username")
+      .limit(MAX_RANKED_USERS),
+    supabase
+      .from("user_profile_settings")
+      .select("user_id, affiliation, nickname")
       .limit(MAX_RANKED_USERS),
     supabase
       .from("user_reading_progress")
@@ -58,7 +71,7 @@ export async function GET(request: Request) {
       .limit(MAX_RANKED_USERS),
   ]);
 
-  if (accountResult.error || readingResult.error) {
+  if (accountResult.error || profileResult.error || readingResult.error) {
     return Response.json(
       { error: "말씀 활동을 불러오지 못했습니다." },
       { status: 500 },
@@ -71,17 +84,37 @@ export async function GET(request: Request) {
       countReadingProgressInRange(record.progress, week),
     ]),
   );
+  const affiliations = new Map(
+    (profileResult.data ?? []).map((record) => [
+      record.user_id,
+      record.affiliation,
+    ]),
+  );
+  const nicknames = new Map(
+    (profileResult.data ?? []).map((record) => [
+      record.user_id,
+      record.nickname,
+    ]),
+  );
 
   const recordedUsers = (accountResult.data ?? [])
     .map((account) => {
       const readCount = readCounts.get(account.user_id) ?? 0;
+      const nickname = nicknames.get(account.user_id) ?? null;
 
       return {
         username: account.username,
+        nickname,
+        displayName: getUserDisplayName(nickname, account.username),
+        affiliation: affiliations.get(account.user_id) ?? null,
         readCount,
       };
     })
-    .filter((item) => item.readCount > 0);
+    .filter((item) => item.readCount > 0)
+    .filter(
+      (item) =>
+        !affiliationFilter || item.affiliation === affiliationFilter,
+    );
   const recordedUsernames = new Set(
     recordedUsers.map((item) => item.username),
   );
@@ -89,7 +122,13 @@ export async function GET(request: Request) {
     process.env.NODE_ENV === "development"
       ? DEVELOPMENT_SAMPLE_USERS.filter(
           (item) => !recordedUsernames.has(item.username),
-        )
+        ).map((item) => ({
+          username: item.username,
+          readCount: item.readCount,
+          nickname: null,
+          displayName: item.username,
+          affiliation: null,
+        }))
       : [];
   const rankedUsers = [...recordedUsers, ...sampleUsers]
     .sort(
@@ -102,7 +141,11 @@ export async function GET(request: Request) {
     .slice(offset, offset + limit)
     .map((item, index) => ({
       rank: offset + index + 1,
-      ...item,
+      username: item.username,
+      nickname: item.nickname ?? null,
+      displayName: item.displayName,
+      readCount: item.readCount,
+      affiliation: item.affiliation ?? null,
     }));
   const response: ActivityRankingResponse = {
     items,

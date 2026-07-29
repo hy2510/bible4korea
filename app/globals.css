@@ -535,3 +535,84 @@ body {
 .sefaria-commentary span {
   color: inherit;
 }
+
+@keyframes daily-goal-progress-shimmer {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(220%);
+  }
+}
+
+@keyframes daily-goal-progress-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(245 158 11 / 0.45);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgb(245 158 11 / 0);
+  }
+}
+
+@keyframes daily-goal-progress-complete {
+  0% {
+    filter: brightness(1);
+  }
+  40% {
+    filter: brightness(1.15);
+  }
+  100% {
+    filter: brightness(1);
+  }
+}
+
+@layer components {
+  .daily-goal-progress-fill {
+    position: relative;
+    overflow: hidden;
+    transition: width 0.9s cubic-bezier(0.22, 1.15, 0.36, 1);
+    will-change: width;
+  }
+
+  .daily-goal-progress-fill::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      105deg,
+      transparent 0%,
+      rgb(255 255 255 / 0.08) 35%,
+      rgb(255 255 255 / 0.45) 50%,
+      rgb(255 255 255 / 0.08) 65%,
+      transparent 100%
+    );
+    transform: translateX(-120%);
+    animation: daily-goal-progress-shimmer 2.4s ease-in-out infinite;
+  }
+
+  .daily-goal-progress-fill--active {
+    animation: daily-goal-progress-pulse 2.2s ease-out infinite;
+  }
+
+  .daily-goal-progress-fill--complete {
+    animation: daily-goal-progress-complete 0.9s ease-out;
+  }
+
+  .daily-goal-progress-fill--complete::after {
+    animation-duration: 3.6s;
+    opacity: 0.7;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .daily-goal-progress-fill {
+      transition: width 0.35s ease;
+    }
+
+    .daily-goal-progress-fill::after,
+    .daily-goal-progress-fill--active,
+    .daily-goal-progress-fill--complete {
+      animation: none;
+    }
+  }
+}

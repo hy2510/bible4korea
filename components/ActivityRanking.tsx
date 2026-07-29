@@ -1,11 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
+import { useUserProfile } from "@/components/UserProfileProvider";
 import type {
   ActivityRankingItem,
   ActivityRankingResponse,
 } from "@/lib/activity-ranking";
+import {
+  homeSectionMetaLabelClassName,
+  homeSectionTitleClassName,
+} from "@/lib/featured-panel";
 
 const PAGE_SIZE = 5;
 
@@ -19,10 +25,19 @@ function rankBadgeClassName(rank: number) {
   return "bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-300";
 }
 
-async function fetchRanking(offset: number): Promise<ActivityRankingResponse> {
-  const response = await fetch(
-    `/api/ranking?offset=${offset}&limit=${PAGE_SIZE}`,
-  );
+async function fetchRanking(
+  offset: number,
+  affiliation?: string | null,
+): Promise<ActivityRankingResponse> {
+  const params = new URLSearchParams({
+    offset: String(offset),
+    limit: String(PAGE_SIZE),
+  });
+  if (affiliation) {
+    params.set("affiliation", affiliation);
+  }
+
+  const response = await fetch(`/api/ranking?${params.toString()}`);
   if (!response.ok) throw new Error("말씀 활동 요청 실패");
   return (await response.json()) as ActivityRankingResponse;
 }
@@ -41,7 +56,8 @@ function RankingSkeleton() {
 }
 
 export function ActivityRanking() {
-  const { syncStatus } = useAuth();
+  const { user, syncStatus } = useAuth();
+  const { settings, loading: profileLoading } = useUserProfile();
   const [items, setItems] = useState<ActivityRankingItem[]>([]);
   const [total, setTotal] = useState(0);
   const [weekLabel, setWeekLabel] = useState("");
@@ -49,17 +65,31 @@ export function ActivityRanking() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(false);
 
-  useEffect(() => {
-    let active = true;
+  const affiliation = settings?.affiliation ?? null;
+  const affiliationOnly = Boolean(
+    affiliation && settings?.affiliationFilterOnly,
+  );
+  const activeAffiliationFilter = affiliationOnly ? affiliation : null;
 
-    void fetchRanking(0)
-      .then((data) => {
-        if (!active) return;
-        setError(false);
-        setItems(data.items);
-        setTotal(data.total);
-        setWeekLabel(data.weekLabel);
-      })
+  const loadRanking = useCallback(
+    async (offset: number, append: boolean) => {
+      const data = await fetchRanking(offset, activeAffiliationFilter);
+      setError(false);
+      setItems((current) =>
+        append ? [...current, ...data.items] : data.items,
+      );
+      setTotal(data.total);
+      setWeekLabel(data.weekLabel);
+    },
+    [activeAffiliationFilter],
+  );
+
+  useEffect(() => {
+    if (profileLoading) return;
+
+    let active = true;
+    setLoading(true);
+    void loadRanking(0, false)
       .catch(() => {
         if (active) setError(true);
       })
@@ -70,16 +100,13 @@ export function ActivityRanking() {
     return () => {
       active = false;
     };
-  }, [syncStatus]);
+  }, [profileLoading, loadRanking, syncStatus]);
 
   const loadMore = async () => {
     setLoadingMore(true);
     setError(false);
     try {
-      const data = await fetchRanking(items.length);
-      setItems((current) => [...current, ...data.items]);
-      setTotal(data.total);
-      setWeekLabel(data.weekLabel);
+      await loadRanking(items.length, true);
     } catch {
       setError(true);
     } finally {
@@ -92,23 +119,46 @@ export function ActivityRanking() {
       aria-labelledby="activity-ranking-title"
       className="mb-13 rounded-2xl border border-stone-200/80 bg-white px-4 py-6 dark:border-stone-800 dark:bg-stone-900/60 sm:p-8"
     >
-      <div className="mb-5 flex items-center justify-between gap-4">
+      <div className="mb-5">
+        {activeAffiliationFilter && (
+          <p className={homeSectionMetaLabelClassName}>
+            {activeAffiliationFilter}
+          </p>
+        )}
         <h2
           id="activity-ranking-title"
-          className="font-serif text-base font-bold text-stone-900 dark:text-stone-100 sm:text-lg"
+          className={
+            activeAffiliationFilter
+              ? homeSectionTitleClassName
+              : "font-serif text-base font-bold text-stone-900 dark:text-stone-100 sm:text-lg"
+          }
         >
           말씀 읽기 순위
         </h2>
         {weekLabel && (
-          <p className="shrink-0 text-xs text-stone-400">{weekLabel}</p>
+          <p className="mt-1 text-xs text-stone-400">{weekLabel}</p>
         )}
       </div>
+
+      {user && !profileLoading && !affiliation && (
+        <p className="mb-4 rounded-xl border border-dashed border-stone-200 px-4 py-3 text-sm text-stone-500 dark:border-stone-700 dark:text-stone-400">
+          <Link
+            href="/profile"
+            className="cursor-pointer font-semibold text-amber-800 underline decoration-amber-800/30 underline-offset-4 hover:text-amber-950 dark:text-amber-300 dark:hover:text-amber-200"
+          >
+            프로필
+          </Link>
+          에서 소속을 입력하면 같은 소속만 모아볼 수 있습니다.
+        </p>
+      )}
 
       {loading ? (
         <RankingSkeleton />
       ) : items.length === 0 && !error ? (
         <p className="rounded-xl border border-dashed border-stone-200 px-4 py-8 text-center text-sm text-stone-500 dark:border-stone-700 dark:text-stone-400">
-          아직 표시할 읽기 기록이 없습니다.
+          {activeAffiliationFilter
+            ? "같은 소속의 읽기 기록이 아직 없습니다."
+            : "아직 표시할 읽기 기록이 없습니다."}
         </p>
       ) : (
         <ol className="space-y-2">
@@ -123,8 +173,21 @@ export function ActivityRanking() {
               >
                 {item.rank}
               </span>
-              <span className="min-w-0 flex-1 truncate text-sm font-semibold text-stone-800 dark:text-stone-200">
-                {item.username}
+              <span className="min-w-0 flex-1 truncate text-sm text-stone-800 dark:text-stone-200">
+                {!activeAffiliationFilter && item.affiliation && (
+                  <>
+                    <span className="font-medium text-stone-500 dark:text-stone-400">
+                      {item.affiliation}
+                    </span>
+                    <span
+                      aria-hidden
+                      className="mx-1.5 text-stone-300 dark:text-stone-600"
+                    >
+                      ·
+                    </span>
+                  </>
+                )}
+                <span className="font-semibold">{item.displayName}</span>
               </span>
               <span className="shrink-0 text-sm font-normal text-stone-500 dark:text-stone-400">
                 총 {item.readCount}절 읽음

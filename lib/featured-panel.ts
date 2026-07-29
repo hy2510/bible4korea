@@ -7,6 +7,14 @@ export const featuredPanelLightFillClassName =
 export const featuredLabelClassName =
   "text-xs font-medium text-amber-800/80 dark:text-amber-500/75";
 
+/** Home white cards: meta line above section title (date, affiliation) */
+export const homeSectionMetaLabelClassName =
+  "text-xs font-semibold text-amber-700 dark:text-amber-400";
+
+/** Home white cards: section title below meta line */
+export const homeSectionTitleClassName =
+  "mt-1 font-serif text-base font-bold text-stone-900 dark:text-stone-100 sm:text-lg";
+
 export const featuredLabelLightTextClassName = "text-amber-800/80";
 
 export const featuredTitleClassName = "font-serif font-bold text-stone-900";

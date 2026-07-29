@@ -10,7 +10,12 @@ import {
   getServerPronunciationProgressSnapshot,
   subscribeToPronunciationProgress,
 } from "@/lib/pronunciation-progress";
-import { featuredLinkClassName } from "@/lib/featured-panel";
+import {
+  featuredLinkClassName,
+  homeSectionMetaLabelClassName,
+  homeSectionTitleClassName,
+} from "@/lib/featured-panel";
+import { DailyGoalProgressBar } from "@/components/DailyGoalProgressBar";
 
 const DAILY_GOAL_COMPLIMENTS = [
   "오늘도 잘했어요!",
@@ -101,13 +106,8 @@ export function HomeDailyGoalCard() {
     >
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">
-            {formatToday()}
-          </p>
-          <h2
-            id="home-daily-goal-title"
-            className="mt-1 font-serif text-base font-bold text-stone-900 dark:text-stone-100 sm:text-lg"
-          >
+          <p className={homeSectionMetaLabelClassName}>{formatToday()}</p>
+          <h2 id="home-daily-goal-title" className={homeSectionTitleClassName}>
             일일 읽기 목표
           </h2>
         </div>
@@ -135,19 +135,14 @@ export function HomeDailyGoalCard() {
               {percentage}%
             </p>
           </div>
-          <div
-            className="mt-3 h-2.5 overflow-hidden rounded-full bg-stone-100 dark:bg-stone-800"
-            role="progressbar"
-            aria-label="오늘의 일일 읽기 목표 진행률"
-            aria-valuemin={0}
-            aria-valuemax={target}
-            aria-valuenow={Math.min(todayCount, target)}
-          >
-            <div
-              className={`h-full rounded-full transition-[width] duration-500 ${
-                completed ? "bg-emerald-500" : "bg-amber-500"
-              }`}
-              style={{ width: `${percentage}%` }}
+          <div className="mt-3">
+            <DailyGoalProgressBar
+              value={todayCount}
+              max={target}
+              completed={completed}
+              label="오늘의 일일 읽기 목표 진행률"
+              size="md"
+              trackClassName="bg-stone-100 dark:bg-stone-800"
             />
           </div>
           <div className="mt-5 flex items-center justify-between gap-3">

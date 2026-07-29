@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useDailyGoal } from "@/components/DailyGoalProvider";
+import { DailyGoalProgressBar } from "@/components/DailyGoalProgressBar";
 import {
   DAILY_GOAL_MAX,
   DAILY_GOAL_MIN,
@@ -29,6 +30,7 @@ export function DailyGoalSettings() {
   const {
     target,
     todayCount,
+    achievedToday,
     achievedDates,
     goalStartedDate,
     loading,
@@ -49,6 +51,9 @@ export function DailyGoalSettings() {
   const progressPercentage = target
     ? Math.min(100, Math.round((todayCount / target) * 100))
     : 0;
+  const goalCompletedToday = Boolean(
+    target && (achievedToday || todayCount >= target),
+  );
 
   const changeMonth = (offset: number) => {
     setVisibleMonth((current) => {
@@ -163,17 +168,12 @@ export function DailyGoalSettings() {
             {target ? `${progressPercentage}%` : "목표를 설정해 주세요"}
           </p>
         </div>
-        <div
-          className="mt-3 h-2 overflow-hidden rounded-full bg-stone-200 dark:bg-stone-700"
-          role="progressbar"
-          aria-label="오늘의 목표 진행률"
-          aria-valuemin={0}
-          aria-valuemax={target ?? 1}
-          aria-valuenow={Math.min(todayCount, target ?? 0)}
-        >
-          <div
-            className="h-full rounded-full bg-amber-500 transition-[width] duration-500"
-            style={{ width: `${progressPercentage}%` }}
+        <div className="mt-3">
+          <DailyGoalProgressBar
+            value={todayCount}
+            max={target ?? 0}
+            completed={goalCompletedToday}
+            label="오늘의 목표 진행률"
           />
         </div>
       </div>

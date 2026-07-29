@@ -4,6 +4,9 @@ import Link from "next/link";
 import { useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { DailyGoalSettings } from "@/components/DailyGoalSettings";
+import { AffiliationSettings } from "@/components/AffiliationSettings";
+import { NicknameSettings } from "@/components/NicknameSettings";
+import { useUserNickname } from "@/components/useUserNickname";
 import {
   isValidPassword,
   PASSWORD_MAX_LENGTH,
@@ -22,13 +25,14 @@ const fieldClassName =
 
 export function ProfileSettings() {
   const { user, username, loading, configured } = useAuth();
+  const { nickname, displayName } = useUserNickname();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [newPasswordConfirmation, setNewPasswordConfirmation] = useState("");
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState("");
   const [succeeded, setSucceeded] = useState(false);
-  const initial = (username?.trim().charAt(0) || "회").toUpperCase();
+  const initial = (displayName.trim().charAt(0) || "회").toUpperCase();
 
   const handlePasswordChange = async () => {
     setSucceeded(false);
@@ -151,10 +155,17 @@ export function ProfileSettings() {
           {initial}
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-medium text-muted">아이디</p>
-          <p className="mt-1 truncate font-semibold text-foreground">
-            {username ?? "회원"}
+          <p className="text-xs font-medium text-muted">
+            {nickname ? "별명" : "아이디"}
           </p>
+          <p className="mt-1 truncate font-semibold text-foreground">
+            {displayName}
+          </p>
+          {nickname && username && (
+            <p className="mt-0.5 truncate text-xs text-muted">
+              아이디 {username}
+            </p>
+          )}
         </div>
         <Link
           href="/reading-history"
@@ -165,6 +176,10 @@ export function ProfileSettings() {
       </section>
 
       <DailyGoalSettings />
+
+      <NicknameSettings />
+
+      <AffiliationSettings />
 
       <section className="rounded-2xl border border-border bg-surface p-5 shadow-sm sm:p-7">
         <h2 className="font-semibold text-foreground">비밀번호 변경</h2>

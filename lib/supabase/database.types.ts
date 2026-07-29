@@ -84,6 +84,29 @@ export interface Database {
         };
         Relationships: [];
       };
+      user_profile_settings: {
+        Row: {
+          user_id: string;
+          affiliation: string | null;
+          nickname: string | null;
+          affiliation_filter_only: boolean;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          affiliation?: string | null;
+          nickname?: string | null;
+          affiliation_filter_only?: boolean;
+          updated_at?: string;
+        };
+        Update: {
+          affiliation?: string | null;
+          nickname?: string | null;
+          affiliation_filter_only?: boolean;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       user_accounts: {
         Row: {
           user_id: string;

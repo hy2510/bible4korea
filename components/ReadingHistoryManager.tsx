@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState, useSyncExternalStore } from "react";
 import { useAuth } from "@/components/AuthProvider";
+import { useUserNickname } from "@/components/useUserNickname";
 import type { BibleBook } from "@/lib/bible-api";
 import {
   deleteLastReadBooks,
@@ -40,7 +41,8 @@ export function ReadingHistoryManager({
   books,
   bibleVerseCounts,
 }: ReadingHistoryManagerProps) {
-  const { user, username, loading, configured, syncStatus } = useAuth();
+  const { user, loading, configured, syncStatus } = useAuth();
+  const { displayName } = useUserNickname();
   const lastReadChapters = useSyncExternalStore(
     subscribeToLastReadChapters,
     getLastReadChapters,
@@ -181,7 +183,7 @@ export function ReadingHistoryManager({
       <div className="mb-5 rounded-xl border border-border bg-surface-muted px-4 py-3 text-sm">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="min-w-0 truncate text-foreground">
-            <strong className="font-semibold">{username ?? "회원"}</strong>
+            <strong className="font-semibold">{displayName}</strong>
           </p>
           <p
             className={

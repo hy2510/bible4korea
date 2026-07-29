@@ -1,9 +1,13 @@
 import type { Json } from "@/lib/supabase/database.types";
+import { getUserDisplayName } from "@/lib/user-profile";
 
 export interface ActivityRankingItem {
   rank: number;
   username: string;
+  nickname: string | null;
+  displayName: string;
   readCount: number;
+  affiliation: string | null;
 }
 
 export interface ActivityRankingResponse {
