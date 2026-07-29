@@ -43,22 +43,31 @@ Supabase Auth는 아이디 로그인을 직접 지원하지 않으므로 서버�
 - 비밀번호 찾기 답변은 `scrypt` 솔트 해시만 저장됩니다.
 - 비밀번호 찾기 실패는 아이디와 접속 주소를 기준으로 15분간 제한됩니다.
 
-## 4. 이메일 인증 비활성화
+## 4. Supabase Auth 설정
 
-이 앱은 아이디·비밀번호 로그인만 사용하며 Supabase Auth 이메일 기능은
-사용하지 않습니다. 대시보드에서 아래 설정을 꺼 두면 불필요한 인증 메일
-발송과 Auth API 남용을 줄일 수 있습니다.
+이 앱은 아이디·비밀번호 로그인을 위해 Supabase Auth의 **Email provider**를
+사용합니다. 사용자에게 실제 이메일을 보내지 않지만, 로그인 API
+(`signInWithPassword`) 자체는 Email provider가 **켜져 있어야** 동작합니다.
 
 **Authentication → Providers → Email**
 
+- Enable Email provider: **ON** (필수)
 - Confirm email: **OFF**
 - Secure email change: **OFF**
-- Enable email signup: **OFF**
-- Password recovery: **OFF**
+- Password recovery: **OFF** (이메일 재설정 메일 방지)
+
+**Authentication → Settings**
+
+- Allow new users to sign up: **OFF** (공개 회원가입 차단, 기존 사용자 로그인은
+  계속 가능)
+
+주의: Email provider 자체를 끄거나, Email signup만 꺼 두면 기존 사용자도
+로그인하지 못하고 "아이디 또는 비밀번호가 일치하지 않습니다"처럼 보일 수
+있습니다. 공개 가입만 막으려면 위 **Allow new users to sign up** 항목을
+사용하세요.
 
 회원가입·비밀번호 변경·비밀번호 찾기는 서버 API(`admin.createUser`,
-`admin.updateUserById`)만 사용합니다. 클라이언트에서 `updateUser`,
-`resetPasswordForEmail`, `signInWithOtp` 등을 호출하지 않습니다.
+`admin.updateUserById`)만 사용합니다.
 
 ## 5. 동작 방식
 

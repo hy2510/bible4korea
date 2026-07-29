@@ -20,6 +20,7 @@ import {
   USERNAME_MIN_LENGTH,
   type RecoveryQuestionId,
 } from "@/lib/auth/credentials";
+import { getSignInErrorMessage } from "@/lib/auth/login-errors";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
 type AuthView = "login" | "signup" | "recovery";
@@ -104,7 +105,7 @@ export function UsernameAuth() {
       password: toSupabasePassword(passwordValue),
     });
     if (error) {
-      showMessage("아이디 또는 비밀번호가 일치하지 않습니다.");
+      showMessage(getSignInErrorMessage(error));
       return false;
     }
 
