@@ -7,12 +7,16 @@ import { AFFILIATION_MAX_LENGTH } from "@/lib/user-affiliation";
 const fieldClassName =
   "mt-2 min-h-12 w-full rounded-xl border border-border bg-background px-4 text-base text-foreground outline-none transition-colors placeholder:text-stone-400 focus:border-amber-700 focus:ring-2 focus:ring-amber-700/15";
 
+const resetLinkClassName =
+  "mx-auto mt-3 flex cursor-pointer text-sm font-semibold text-muted transition-colors hover:text-foreground disabled:cursor-wait disabled:opacity-60";
+
 export function AffiliationSettings() {
   const {
     settings,
     loading,
     saving,
     saveAffiliation,
+    clearAffiliation,
     setAffiliationFilterOnly,
   } = useUserProfile();
   const [affiliation, setAffiliation] = useState("");
@@ -34,6 +38,16 @@ export function AffiliationSettings() {
     setSucceeded(false);
 
     const result = await saveAffiliation(affiliation);
+    setSucceeded(result.ok);
+    setMessage(result.message);
+  };
+
+  const handleReset = async () => {
+    setMessage("");
+    setSucceeded(false);
+
+    const result = await clearAffiliation();
+    if (result.ok) setAffiliation("");
     setSucceeded(result.ok);
     setMessage(result.message);
   };
@@ -98,6 +112,17 @@ export function AffiliationSettings() {
         >
           {saving ? "저장하는 중…" : savedAffiliation ? "변경" : "저장"}
         </button>
+
+        {savedAffiliation && (
+          <button
+            type="button"
+            disabled={saving || filterSaving}
+            onClick={() => void handleReset()}
+            className={resetLinkClassName}
+          >
+            초기화
+          </button>
+        )}
       </form>
 
       {savedAffiliation && (

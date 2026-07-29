@@ -12,6 +12,10 @@ import {
   homeSectionMetaLabelClassName,
   homeSectionTitleClassName,
 } from "@/lib/featured-panel";
+import {
+  dismissHomeRankingAffiliationHint,
+  isHomeRankingAffiliationHintDismissed,
+} from "@/lib/user-affiliation";
 
 const PAGE_SIZE = 5;
 
@@ -64,6 +68,7 @@ export function ActivityRanking() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(false);
+  const [affiliationHintDismissed, setAffiliationHintDismissed] = useState(true);
 
   const affiliation = settings?.affiliation ?? null;
   const affiliationOnly = Boolean(
@@ -101,6 +106,10 @@ export function ActivityRanking() {
       active = false;
     };
   }, [profileLoading, loadRanking, syncStatus]);
+
+  useEffect(() => {
+    setAffiliationHintDismissed(isHomeRankingAffiliationHintDismissed());
+  }, []);
 
   const loadMore = async () => {
     setLoadingMore(true);
@@ -140,16 +149,31 @@ export function ActivityRanking() {
         )}
       </div>
 
-      {user && !profileLoading && !affiliation && (
-        <p className="mb-4 rounded-xl border border-dashed border-stone-200 px-4 py-3 text-sm text-stone-500 dark:border-stone-700 dark:text-stone-400">
-          <Link
-            href="/profile"
-            className="cursor-pointer font-semibold text-amber-800 underline decoration-amber-800/30 underline-offset-4 hover:text-amber-950 dark:text-amber-300 dark:hover:text-amber-200"
+      {user && !profileLoading && !affiliation && !affiliationHintDismissed && (
+        <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-dashed border-stone-200 px-4 py-3 dark:border-stone-700">
+          <p className="min-w-0 flex-1 text-sm text-stone-500 dark:text-stone-400">
+            <Link
+              href="/profile"
+              className="cursor-pointer font-semibold text-amber-800 transition-colors hover:text-amber-950 dark:text-amber-300 dark:hover:text-amber-200"
+            >
+              마이 프로필
+            </Link>
+            에서 소속을 입력하면 같은 소속만 모아볼 수 있습니다.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              dismissHomeRankingAffiliationHint();
+              setAffiliationHintDismissed(true);
+            }}
+            aria-label="안내 닫기"
+            className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-stone-400 transition-colors hover:bg-stone-100 hover:text-stone-700 dark:hover:bg-stone-800 dark:hover:text-stone-200"
           >
-            프로필
-          </Link>
-          에서 소속을 입력하면 같은 소속만 모아볼 수 있습니다.
-        </p>
+            <span aria-hidden className="text-lg leading-none">
+              ×
+            </span>
+          </button>
+        </div>
       )}
 
       {loading ? (

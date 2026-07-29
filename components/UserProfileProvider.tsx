@@ -38,6 +38,7 @@ interface UserProfileContextValue {
   displayName: string;
   saveNickname: (value: string) => Promise<SaveResult>;
   saveAffiliation: (value: string) => Promise<SaveResult>;
+  clearAffiliation: () => Promise<SaveResult>;
   setAffiliationFilterOnly: (enabled: boolean) => Promise<boolean>;
 }
 
@@ -184,6 +185,20 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
     [patchSettings],
   );
 
+  const clearAffiliation = useCallback(async (): Promise<SaveResult> => {
+    const ok = await patchSettings({
+      affiliation: null,
+      affiliation_filter_only: false,
+    });
+
+    return ok
+      ? { ok: true, message: "소속을 초기화했습니다." }
+      : {
+          ok: false,
+          message: "소속을 초기화하지 못했습니다. 다시 시도해 주세요.",
+        };
+  }, [patchSettings]);
+
   const setAffiliationFilterOnly = useCallback(
     async (enabled: boolean) => {
       return patchSettings({ affiliation_filter_only: enabled });
@@ -201,6 +216,7 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
       displayName,
       saveNickname,
       saveAffiliation,
+      clearAffiliation,
       setAffiliationFilterOnly,
     }),
     [
@@ -210,6 +226,7 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
       displayName,
       saveNickname,
       saveAffiliation,
+      clearAffiliation,
       setAffiliationFilterOnly,
     ],
   );

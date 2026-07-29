@@ -7,6 +7,9 @@ import { NICKNAME_MAX_LENGTH } from "@/lib/user-profile";
 const fieldClassName =
   "mt-2 min-h-12 w-full rounded-xl border border-border bg-background px-4 text-base text-foreground outline-none transition-colors placeholder:text-stone-400 focus:border-amber-700 focus:ring-2 focus:ring-amber-700/15";
 
+const resetLinkClassName =
+  "mx-auto mt-3 flex cursor-pointer text-sm font-semibold text-muted transition-colors hover:text-foreground disabled:cursor-wait disabled:opacity-60";
+
 export function NicknameSettings() {
   const { settings, loading, saving, saveNickname } = useUserProfile();
   const [nickname, setNickname] = useState("");
@@ -22,6 +25,16 @@ export function NicknameSettings() {
     setSucceeded(false);
 
     const result = await saveNickname(nickname);
+    setSucceeded(result.ok);
+    setMessage(result.message);
+  };
+
+  const handleReset = async () => {
+    setMessage("");
+    setSucceeded(false);
+
+    const result = await saveNickname("");
+    if (result.ok) setNickname("");
     setSucceeded(result.ok);
     setMessage(result.message);
   };
@@ -76,6 +89,17 @@ export function NicknameSettings() {
         >
           {saving ? "저장하는 중…" : settings?.nickname ? "변경" : "저장"}
         </button>
+
+        {settings?.nickname && (
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() => void handleReset()}
+            className={resetLinkClassName}
+          >
+            초기화
+          </button>
+        )}
       </form>
 
       {message && (
