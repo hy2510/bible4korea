@@ -41,7 +41,7 @@ export function ScrollToTopButton() {
       type="button"
       onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
       aria-label="맨 위로 가기"
-      className={`fixed z-40 inline-flex items-center gap-1.5 rounded-xl border border-border bg-surface px-3.5 py-2.5 text-sm font-medium text-stone-700 shadow-lg transition-colors hover:border-amber-300 hover:text-amber-900 dark:text-stone-300 ${SAFE_AREA.fixedBottom} ${SAFE_AREA.fixedRight}`}
+      className={`fixed z-40 inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-border bg-surface px-3.5 py-2.5 text-sm font-medium text-stone-700 shadow-lg transition-colors hover:border-amber-300 hover:text-amber-900 dark:text-stone-300 ${SAFE_AREA.fixedBottom} ${SAFE_AREA.fixedRight}`}
     >
       <ChevronUpIcon />
       맨 위로

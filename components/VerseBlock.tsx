@@ -26,7 +26,7 @@ export function VerseBlock({
   return (
     <div
       id={`verse-${verseNum}`}
-      className="scroll-mt-24 rounded-xl border border-transparent px-3 py-3 transition-[background-color,border-color,box-shadow] duration-500 hover:border-stone-100 hover:bg-stone-50/60"
+      className="rounded-xl border border-transparent px-3 py-3 transition-[background-color,border-color,box-shadow] duration-500 hover:border-stone-100 hover:bg-stone-50/60"
     >
       <p className="font-serif text-base leading-[1.9] text-stone-800 sm:text-lg">
         <sup className="mr-1.5 inline-block min-w-[1.25rem] text-xs font-semibold text-amber-800">

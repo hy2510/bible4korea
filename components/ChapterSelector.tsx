@@ -36,7 +36,7 @@ export function ChapterSelector({
             aria-label={`${num}장, ${progress.completedVerses} / ${
               progress.totalVerses || "?"
             }절 읽기 완료`}
-            className="group relative flex size-10 justify-self-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2"
+            className="group relative flex size-10 cursor-pointer justify-self-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2"
           >
             <svg
               viewBox="0 0 40 40"

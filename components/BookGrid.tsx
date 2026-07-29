@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import Link from "next/link";
+import { useAuth } from "@/components/AuthProvider";
 import type { BibleBook } from "@/lib/bible-api";
 import {
   getBookPronunciationProgress,
@@ -21,6 +22,7 @@ export function BookGrid({
   bibleVerseCounts,
   title,
 }: BookGridProps) {
+  const { user } = useAuth();
   const pronunciationProgress = useSyncExternalStore(
     subscribeToPronunciationProgress,
     getPronunciationProgressSnapshot,
@@ -43,9 +45,14 @@ export function BookGrid({
           return (
             <Link
               key={book.id}
-              href={`/read/${book.slug}/1`}
-              aria-label={`${book.name}, 소리 내어 읽기 ${progress.percentage}%`}
-              className="group flex flex-col items-center rounded-xl border border-stone-200/80 bg-white px-2 py-3 transition-all hover:border-amber-300 hover:shadow-sm dark:border-stone-800 dark:bg-stone-900/60 dark:hover:border-amber-700"
+              href={`/read/${book.slug}/1?from=book-list`}
+              scroll={false}
+              aria-label={
+                user
+                  ? `${book.name}, 소리 내어 읽기 ${progress.percentage}%`
+                  : book.name
+              }
+              className="group flex cursor-pointer flex-col items-center rounded-xl border border-stone-200/80 bg-white px-2 py-3 transition-all hover:border-amber-300 hover:shadow-sm dark:border-stone-800 dark:bg-stone-900/60 dark:hover:border-amber-700"
             >
               <span className="text-base font-semibold text-stone-800 group-hover:text-amber-900 dark:text-stone-100 dark:group-hover:text-amber-300">
                 {book.abbrev}
@@ -53,34 +60,36 @@ export function BookGrid({
               <span className="mt-0.5 truncate text-[11px] text-stone-500 dark:text-stone-400">
                 {book.name}
               </span>
-              <span className="mt-2 block w-full max-w-20">
-                <span
-                  role="progressbar"
-                  aria-label={`${book.name} 소리 내어 읽기 진행률`}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-valuenow={progress.percentage}
-                  className="block h-1 overflow-hidden rounded-full bg-stone-100 dark:bg-black/40"
-                >
+              {user && (
+                <span className="mt-2 block w-full max-w-20">
                   <span
-                    className={`block h-full rounded-full transition-[width] duration-500 ${
+                    role="progressbar"
+                    aria-label={`${book.name} 소리 내어 읽기 진행률`}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={progress.percentage}
+                    className="block h-1 overflow-hidden rounded-full bg-stone-100 dark:bg-black/40"
+                  >
+                    <span
+                      className={`block h-full rounded-full transition-[width] duration-500 ${
+                        progress.isComplete
+                          ? "bg-emerald-500"
+                          : "bg-amber-700"
+                      }`}
+                      style={{ width: `${progress.percentage}%` }}
+                    />
+                  </span>
+                  <span
+                    className={`mt-1 block text-center text-[10px] tabular-nums ${
                       progress.isComplete
-                        ? "bg-emerald-500"
-                        : "bg-amber-700"
+                        ? "font-semibold text-emerald-700 dark:text-emerald-400"
+                        : "text-stone-400 dark:text-stone-500"
                     }`}
-                    style={{ width: `${progress.percentage}%` }}
-                  />
+                  >
+                    읽기 {progress.percentage}%
+                  </span>
                 </span>
-                <span
-                  className={`mt-1 block text-center text-[10px] tabular-nums ${
-                    progress.isComplete
-                      ? "font-semibold text-emerald-700 dark:text-emerald-400"
-                      : "text-stone-400 dark:text-stone-500"
-                  }`}
-                >
-                  읽기 {progress.percentage}%
-                </span>
-              </span>
+              )}
             </Link>
           );
         })}

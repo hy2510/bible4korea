@@ -9,6 +9,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/components/AuthProvider";
 import { saveLastReadChapter } from "@/lib/last-read";
 import type { BibleBook } from "@/lib/bible-api";
 import {
@@ -29,6 +30,7 @@ import {
   highlightAndScrollToVerse,
   runWhenVerseElementReady,
 } from "@/lib/verse-jump";
+import { scrollElementBelowHeader } from "@/lib/reading-scroll";
 import { ChapterNav } from "@/components/ChapterNav";
 import { SefariaCommentaryModal } from "@/components/SefariaCommentaryModal";
 import { VerseDisplay } from "@/components/VerseDisplay";
@@ -60,6 +62,8 @@ interface ChapterReaderProps {
   verses: ChapterVerse[];
   highlightStrongs?: string;
   jumpFromSearch?: boolean;
+  suppressInitialVerseScroll?: boolean;
+  openPronunciationPractice?: boolean;
 }
 
 function clampVerse(verse: number, total: number): number {
@@ -76,10 +80,13 @@ export function ChapterReader({
   verses,
   highlightStrongs,
   jumpFromSearch = false,
+  suppressInitialVerseScroll = false,
+  openPronunciationPractice = false,
 }: ChapterReaderProps) {
   const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
   const [viewMode, setViewMode] = useState<VerseViewMode>(() =>
-    getStoredVerseViewMode(),
+    openPronunciationPractice ? "single" : getStoredVerseViewMode(),
   );
   const [sefariaCommentaryVerses, setSefariaCommentaryVerses] = useState<
     Set<number>
@@ -100,11 +107,14 @@ export function ChapterReader({
   const [pronunciationPanelOpen, setPronunciationPanelOpen] = useState(false);
   const [pronunciationAutoStartVerse, setPronunciationAutoStartVerse] =
     useState<number | null>(null);
-  const topVerseNavRef = useRef<HTMLDivElement>(null);
-  const scrollToTopNavOnVerseChange = useRef(false);
-  const pendingPronunciationScrollVerseRef = useRef<number | null>(null);
+  const pendingSingleVerseScrollRef = useRef<{
+    verseNum: number;
+    behavior: ScrollBehavior;
+  } | null>(null);
+  const lastSingleVerseScrollKeyRef = useRef<string | null>(null);
   const fullHashJumpCleanupRef = useRef<(() => void) | null>(null);
   const pendingInternalHashRef = useRef<string | null>(null);
+  const initialPronunciationHandledRef = useRef(false);
   const hash = useSyncExternalStore(
     subscribeToHash,
     getHashSnapshot,
@@ -117,6 +127,38 @@ export function ChapterReader({
   );
   const jumpBehavior: ScrollBehavior =
     jumpFromSearch || getVerseFromHash() ? "instant" : "smooth";
+
+  useEffect(() => {
+    if (
+      !openPronunciationPractice ||
+      initialPronunciationHandledRef.current ||
+      authLoading ||
+      !user
+    ) {
+      return;
+    }
+
+    initialPronunciationHandledRef.current = true;
+    const verseNum = clampVerse(getVerseFromHash() ?? 1, verses.length);
+    setStoredVerseViewMode("single");
+    setViewMode("single");
+    setCurrentVerse(verseNum);
+    setPronunciationAutoStartVerse(null);
+    setPronunciationPanelOpen(true);
+
+    const url = new URL(window.location.href);
+    url.searchParams.delete("practice");
+    window.history.replaceState(
+      window.history.state,
+      "",
+      `${url.pathname}${url.search}${url.hash}`,
+    );
+  }, [
+    authLoading,
+    openPronunciationPractice,
+    user,
+    verses.length,
+  ]);
 
   useEffect(() => {
     let cancelled = false;
@@ -212,65 +254,53 @@ export function ChapterReader({
     return () => window.clearTimeout(timeoutId);
   }, [viewMode, currentVerse, bookSlug, bookName, chapter, verses]);
 
-  useEffect(() => {
-    if (viewMode !== "single") return;
-    if (!scrollToTopNavOnVerseChange.current) return;
-
-    scrollToTopNavOnVerseChange.current = false;
-    topVerseNavRef.current?.scrollIntoView({
-      block: "start",
-      behavior: "smooth",
-    });
-  }, [currentVerse, viewMode]);
-
   useLayoutEffect(() => {
-    if (
-      viewMode !== "single" ||
-      pendingPronunciationScrollVerseRef.current !== null
-    ) {
-      return;
-    }
+    if (viewMode !== "single") return;
 
     const hashVerse = getVerseFromHash();
-    if (!hashVerse) return;
-
-    const verseNum = clampVerse(hashVerse, verses.length);
+    const hashScrollKey = hashVerse
+      ? `${bookSlug}:${chapter}:${clampVerse(hashVerse, verses.length)}`
+      : null;
+    const pendingScroll = pendingSingleVerseScrollRef.current;
+    const verseNum =
+      pendingScroll?.verseNum ??
+      (!suppressInitialVerseScroll &&
+        hashScrollKey !== lastSingleVerseScrollKeyRef.current &&
+        hashVerse
+        ? clampVerse(hashVerse, verses.length)
+        : null);
+    if (verseNum === null) return;
     if (verseNum !== currentVerse || !verses[verseNum - 1]) return;
 
-    scrollToTopNavOnVerseChange.current = false;
-    const frameId = window.requestAnimationFrame(() => {
-      document.getElementById(`verse-${verseNum}`)?.scrollIntoView({
-        block: "center",
-        behavior: "smooth",
-      });
-    });
-
-    return () => window.cancelAnimationFrame(frameId);
-  }, [viewMode, currentVerse, verses, bookSlug, chapter, hash]);
-
-  useLayoutEffect(() => {
-    const verseNum = pendingPronunciationScrollVerseRef.current;
-    if (
-      viewMode !== "single" ||
-      !pronunciationPanelOpen ||
-      verseNum === null ||
-      verseNum !== currentVerse
-    ) {
+    const scrollKey = `${bookSlug}:${chapter}:${verseNum}`;
+    if (!pendingScroll && scrollKey === lastSingleVerseScrollKeyRef.current) {
       return;
     }
 
-    pendingPronunciationScrollVerseRef.current = null;
-    scrollToTopNavOnVerseChange.current = false;
-
     const frameId = window.requestAnimationFrame(() => {
-      document.getElementById(`verse-${verseNum}`)?.scrollIntoView({
-        block: "center",
-        behavior: "smooth",
-      });
+      const target = document.querySelector<HTMLElement>(
+        "[data-chapter-reading-scroll-point]",
+      );
+      if (!target) return;
+
+      scrollElementBelowHeader(
+        target,
+        pendingScroll?.behavior ?? jumpBehavior,
+      );
+      pendingSingleVerseScrollRef.current = null;
+      lastSingleVerseScrollKeyRef.current = scrollKey;
     });
 
     return () => window.cancelAnimationFrame(frameId);
-  }, [viewMode, currentVerse, pronunciationPanelOpen]);
+  }, [
+    viewMode,
+    currentVerse,
+    verses,
+    bookSlug,
+    chapter,
+    jumpBehavior,
+    suppressInitialVerseScroll,
+  ]);
 
   useLayoutEffect(() => {
     if (viewMode !== "full") return;
@@ -321,16 +351,66 @@ export function ChapterReader({
     }
   };
 
-  const goToVerse = (verseNum: number) => {
-    const next = clampVerse(verseNum, verses.length);
-    if (next === currentVerse) return;
+  const goToVerse = useCallback(
+    (verseNum: number) => {
+      const next = clampVerse(verseNum, verses.length);
+      const behavior = "smooth" as const;
+      pendingSingleVerseScrollRef.current = { verseNum: next, behavior };
 
-    pendingInternalHashRef.current = `#verse-${next}`;
-    scrollToTopNavOnVerseChange.current = window.matchMedia(
-      "(max-width: 639px)",
-    ).matches;
-    setCurrentVerse(next);
-  };
+      if (next === currentVerse) {
+        const target = document.querySelector<HTMLElement>(
+          "[data-chapter-reading-scroll-point]",
+        );
+        if (target) scrollElementBelowHeader(target, behavior);
+        pendingSingleVerseScrollRef.current = null;
+        return;
+      }
+
+      pendingInternalHashRef.current = `#verse-${next}`;
+      setCurrentVerse(next);
+    },
+    [currentVerse, verses.length],
+  );
+
+  useEffect(() => {
+    if (viewMode !== "single") return;
+
+    const handleVerseArrowKey = (event: KeyboardEvent) => {
+      if (
+        event.defaultPrevented ||
+        event.repeat ||
+        event.isComposing ||
+        event.altKey ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.shiftKey ||
+        (event.key !== "ArrowLeft" && event.key !== "ArrowRight")
+      ) {
+        return;
+      }
+
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        (target.isContentEditable ||
+          target.closest("input, textarea, select, [contenteditable]"))
+      ) {
+        return;
+      }
+
+      if (document.querySelector(".fixed.inset-0")) return;
+
+      const nextVerse =
+        event.key === "ArrowLeft" ? currentVerse - 1 : currentVerse + 1;
+      if (nextVerse < 1 || nextVerse > verses.length) return;
+
+      event.preventDefault();
+      goToVerse(nextVerse);
+    };
+
+    window.addEventListener("keydown", handleVerseArrowKey);
+    return () => window.removeEventListener("keydown", handleVerseArrowKey);
+  }, [viewMode, currentVerse, verses.length, goToVerse]);
 
   const handleVerseSelect = (verseNum: number) => {
     setViewMode("single");
@@ -339,7 +419,15 @@ export function ChapterReader({
   };
 
   const handleOpenPronunciationPractice = (verseNum: number) => {
-    pendingPronunciationScrollVerseRef.current = verseNum;
+    if (authLoading) return;
+    if (!user) {
+      const confirmed = window.confirm(
+        "소리 내어 읽기를 사용하려면 로그인이 필요합니다.\n로그인하시겠습니까?",
+      );
+      if (confirmed) router.push("/login");
+      return;
+    }
+
     setPronunciationAutoStartVerse(null);
     setPronunciationPanelOpen(true);
 
@@ -349,7 +437,6 @@ export function ChapterReader({
     }
 
     goToVerse(verseNum);
-    scrollToTopNavOnVerseChange.current = false;
   };
 
   const currentVerseData = verses[currentVerse - 1];
@@ -396,7 +483,7 @@ export function ChapterReader({
           <button
             type="button"
             onClick={() => handleViewModeChange("full")}
-            className={`flex-1 rounded-lg px-4 py-2 text-sm font-medium transition-colors sm:flex-initial ${
+            className={`flex-1 cursor-pointer rounded-lg px-4 py-2 text-sm font-medium transition-colors sm:flex-initial ${
               viewMode === "full"
                 ? "bg-white text-amber-900 shadow-sm"
                 : "text-stone-600 hover:text-stone-900"
@@ -407,7 +494,7 @@ export function ChapterReader({
           <button
             type="button"
             onClick={() => handleViewModeChange("single")}
-            className={`flex-1 rounded-lg px-4 py-2 text-sm font-medium transition-colors sm:flex-initial ${
+            className={`flex-1 cursor-pointer rounded-lg px-4 py-2 text-sm font-medium transition-colors sm:flex-initial ${
               viewMode === "single"
                 ? "bg-white text-amber-900 shadow-sm"
                 : "text-stone-600 hover:text-stone-900"
@@ -419,7 +506,7 @@ export function ChapterReader({
       </div>
 
       {isSingle && (
-        <div ref={topVerseNavRef} className="scroll-mt-24">
+        <div>
           <VerseNav
             className="mb-4"
             currentVerse={currentVerse}
@@ -434,12 +521,15 @@ export function ChapterReader({
         <ChapterNav book={book} chapter={chapter} className="mb-4" />
       )}
 
-      <div className="space-y-1">
+      <div
+        className={`space-y-1 ${isSingle ? "[overflow-anchor:none]" : ""}`}
+      >
         {isSingle && currentVerseData ? (
           <>
             <VerseDisplay
               key={currentVerseData.verseNum}
               {...currentVerseData}
+              registerAnchor={false}
               highlightStrongs={highlightStrongs}
               pronunciationCharacterCount={
                 pronunciationProgress?.bookSlug === bookSlug &&
@@ -514,9 +604,12 @@ export function ChapterReader({
             hasNextChapter={chapter < book.chapters}
             onNextChapter={() => {
               setPronunciationAutoStartVerse(null);
-              router.push(`/read/${bookSlug}/${chapter + 1}#verse-1`, {
-                scroll: false,
-              });
+              router.push(
+                `/read/${bookSlug}/${chapter + 1}?practice=1#verse-1`,
+                {
+                  scroll: false,
+                },
+              );
             }}
             autoStart={pronunciationAutoStartVerse === currentVerse}
             onAutoStartHandled={() => setPronunciationAutoStartVerse(null)}

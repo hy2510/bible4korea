@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState, useSyncExternalStore } from "react";
+import { useAuth } from "@/components/AuthProvider";
 import { ChevronRightIcon } from "@/components/ChevronIcons";
 import {
   featuredBodyClassName,
@@ -49,6 +50,23 @@ function formatViewedAt(iso: string): string {
   });
 }
 
+function LoggedOutHistoryPrompt() {
+  return (
+    <div className="rounded-xl border border-dashed border-stone-200 px-4 py-8 text-center dark:border-stone-700">
+      <p className="text-sm leading-relaxed text-stone-500 dark:text-stone-400">
+        로그인하면 최근 본 말씀과 최근 읽은 말씀 기록을 확인하고 동기화할 수
+        있습니다.
+      </p>
+      <Link
+        href="/login"
+        className="mt-4 inline-flex min-h-10 cursor-pointer items-center justify-center rounded-xl bg-amber-800 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-amber-900"
+      >
+        로그인
+      </Link>
+    </div>
+  );
+}
+
 function renderViewedHistory(lastReadList: LastReadChapter[]) {
   if (lastReadList.length === 0) {
     return (
@@ -83,7 +101,7 @@ function renderViewedHistory(lastReadList: LastReadChapter[]) {
         )}
         <Link
           href={getLastReadHref(latest)}
-          className="mt-4 inline-flex items-center rounded-xl bg-amber-800 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-amber-900"
+          className="mt-4 inline-flex cursor-pointer items-center rounded-xl bg-amber-800 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-amber-900"
         >
           이어서 보기
         </Link>
@@ -100,7 +118,7 @@ function renderViewedHistory(lastReadList: LastReadChapter[]) {
             >
               <Link
                 href={getLastReadHref(item)}
-                className="block py-3 transition-colors hover:text-amber-900 dark:hover:text-amber-400"
+                className="block cursor-pointer py-3 transition-colors hover:text-amber-900 dark:hover:text-amber-400"
               >
                 <div className="flex items-center justify-between gap-4">
                   <span className="inline-flex items-center gap-1 font-medium text-stone-800 dark:text-stone-200">
@@ -152,17 +170,19 @@ function renderReadHistory(recentReadVerses: CompletedPronunciationVerse[]) {
             &ldquo;{stripKoreanBibleQuotes(latest.koreanText)}&rdquo;
           </blockquote>
         )}
-        <p className="mt-2 text-sm text-stone-500 dark:text-stone-400">
-          {latest.completedAt
-            ? formatViewedAt(latest.completedAt)
-            : "이전 완료 기록"}
-        </p>
-        <p className="mt-2 text-sm font-medium text-emerald-700 dark:text-emerald-400">
-          ✓ 소리 내어 읽기 완료
-        </p>
+        <div className="mt-2 flex items-center justify-between gap-3">
+          <p className="text-sm text-stone-500 dark:text-stone-400">
+            {latest.completedAt
+              ? formatViewedAt(latest.completedAt)
+              : "이전 완료 기록"}
+          </p>
+          <p className="shrink-0 text-sm font-medium text-emerald-700 dark:text-emerald-400">
+            ✓ 소리 내어 읽기 완료
+          </p>
+        </div>
         <Link
           href={getHref(latest)}
-          className="mt-4 inline-flex items-center rounded-xl bg-amber-800 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-amber-900"
+          className="mt-4 inline-flex cursor-pointer items-center rounded-xl bg-amber-800 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-amber-900"
         >
           말씀 보기
         </Link>
@@ -179,7 +199,7 @@ function renderReadHistory(recentReadVerses: CompletedPronunciationVerse[]) {
             >
               <Link
                 href={getHref(item)}
-                className="block py-3 transition-colors hover:text-amber-900 dark:hover:text-amber-400"
+                className="block cursor-pointer py-3 transition-colors hover:text-amber-900 dark:hover:text-amber-400"
               >
                 <div className="flex items-center justify-between gap-4">
                   <span className="inline-flex items-center gap-1 font-medium text-stone-800 dark:text-stone-200">
@@ -207,6 +227,7 @@ function renderReadHistory(recentReadVerses: CompletedPronunciationVerse[]) {
 }
 
 export function LastReadCard() {
+  const { user, loading } = useAuth();
   const lastReadList = useSyncExternalStore(
     subscribeToLastReadChapters,
     getLastReadChapters,
@@ -222,7 +243,7 @@ export function LastReadCard() {
   );
   const [selectedTab, setSelectedTab] = useState<HistoryTab>("viewed");
 
-  if (lastReadList.length === 0 && recentReadVerses.length === 0) return null;
+  if (loading) return null;
 
   return (
     <section className="mb-13 rounded-2xl border border-stone-200/80 bg-white py-6 px-4 dark:border-stone-800 dark:bg-stone-900/60 sm:p-8">
@@ -238,7 +259,7 @@ export function LastReadCard() {
           aria-selected={selectedTab === "viewed"}
           aria-controls="history-panel-viewed"
           onClick={() => setSelectedTab("viewed")}
-          className={`min-h-10 rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
+          className={`min-h-10 cursor-pointer rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
             selectedTab === "viewed"
               ? "bg-white text-stone-900 shadow-sm dark:bg-stone-800 dark:text-stone-100"
               : "text-stone-500 hover:text-stone-800 dark:text-stone-400 dark:hover:text-stone-200"
@@ -253,7 +274,7 @@ export function LastReadCard() {
           aria-selected={selectedTab === "read"}
           aria-controls="history-panel-read"
           onClick={() => setSelectedTab("read")}
-          className={`min-h-10 rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
+          className={`min-h-10 cursor-pointer rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
             selectedTab === "read"
               ? "bg-white text-stone-900 shadow-sm dark:bg-stone-800 dark:text-stone-100"
               : "text-stone-500 hover:text-stone-800 dark:text-stone-400 dark:hover:text-stone-200"
@@ -270,7 +291,7 @@ export function LastReadCard() {
         hidden={selectedTab !== "viewed"}
         tabIndex={0}
       >
-        {renderViewedHistory(lastReadList)}
+        {user ? renderViewedHistory(lastReadList) : <LoggedOutHistoryPrompt />}
       </div>
       <div
         role="tabpanel"
@@ -279,7 +300,7 @@ export function LastReadCard() {
         hidden={selectedTab !== "read"}
         tabIndex={0}
       >
-        {renderReadHistory(recentReadVerses)}
+        {user ? renderReadHistory(recentReadVerses) : <LoggedOutHistoryPrompt />}
       </div>
     </section>
   );

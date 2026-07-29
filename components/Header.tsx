@@ -10,7 +10,7 @@ export function Header() {
       className={`notranslate sticky top-0 z-10 border-b border-border bg-background ${SAFE_AREA.top}`}
     >
       <div
-        className={`mx-auto flex h-14 max-w-5xl items-center justify-between ${SAFE_AREA.x}`}
+        className={`mx-auto flex h-14 max-w-5xl items-center gap-3 ${SAFE_AREA.x}`}
       >
         <Suspense
           fallback={
@@ -23,7 +23,7 @@ export function Header() {
         >
           <HeaderBrand />
         </Suspense>
-        <Suspense fallback={<div className="h-8 w-40" />}>
+        <Suspense fallback={<div className="h-8 flex-1" />}>
           <HeaderNav />
         </Suspense>
       </div>

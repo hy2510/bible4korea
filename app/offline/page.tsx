@@ -16,7 +16,7 @@ export default function OfflinePage() {
       </p>
       <Link
         href="/"
-        className="mt-6 inline-flex rounded-xl bg-amber-800 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-amber-900"
+        className="mt-6 inline-flex cursor-pointer rounded-xl bg-amber-800 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-amber-900"
       >
         홈으로
       </Link>

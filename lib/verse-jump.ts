@@ -1,3 +1,5 @@
+import { scrollElementBelowHeader } from "@/lib/reading-scroll";
+
 const HIGHLIGHT_DURATION_MS = 2000;
 const MAX_ATTEMPTS = 60;
 const VERSE_JUMP_HIGHLIGHT_CLASS = "verse-jump-highlight";
@@ -26,7 +28,7 @@ export function highlightAndScrollToVerse(
   const behavior = options.behavior ?? "smooth";
 
   clearAllVerseHighlights();
-  target.scrollIntoView({ block: "start", behavior });
+  scrollElementBelowHeader(target, behavior);
   target.classList.add(VERSE_JUMP_HIGHLIGHT_CLASS);
 
   const timeoutId = window.setTimeout(() => {

@@ -1,13 +1,15 @@
-const STORAGE_KEY = "bible4korea:pronunciation-progress";
+export const PRONUNCIATION_PROGRESS_STORAGE_KEY =
+  "bible4korea:pronunciation-progress";
 
-interface StoredPronunciationProgress {
+export interface SerializedPronunciationProgress {
   completedVerseKeys: string[];
   chapterVerseCounts: Record<string, number>;
   completedVerseDetails?: Record<string, CompletedPronunciationVerseDetail>;
 }
 
-interface CompletedPronunciationVerseDetail {
+export interface CompletedPronunciationVerseDetail {
   completedAt: string;
+  completedDate: string;
   koreanText?: string;
 }
 
@@ -47,6 +49,21 @@ let cachedSerialized: string | null | undefined;
 let cachedSnapshot = EMPTY_SNAPSHOT;
 let storageListenerAttached = false;
 
+function getKoreanCalendarDate(value: string | Date): string {
+  const date = typeof value === "string" ? new Date(value) : value;
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const year = parts.find((part) => part.type === "year")?.value ?? "";
+  const month = parts.find((part) => part.type === "month")?.value ?? "";
+  const day = parts.find((part) => part.type === "day")?.value ?? "";
+
+  return `${year}-${month}-${day}`;
+}
+
 function getChapterKey(bookSlug: string, chapter: number): string {
   return `${bookSlug}:${chapter}`;
 }
@@ -59,16 +76,34 @@ function getVerseKey(
   return `${getChapterKey(bookSlug, chapter)}:${verseNum}`;
 }
 
-function parseSnapshot(serialized: string | null): PronunciationProgressSnapshot {
-  if (!serialized) return EMPTY_SNAPSHOT;
+function isValidVerseKey(verseKey: string): boolean {
+  const [bookSlug, chapterText, verseText, ...rest] = verseKey.split(":");
+  const chapter = Number(chapterText);
+  const verse = Number(verseText);
+  return (
+    rest.length === 0 &&
+    Boolean(bookSlug) &&
+    Number.isInteger(chapter) &&
+    chapter > 0 &&
+    Number.isInteger(verse) &&
+    verse > 0
+  );
+}
+
+export function normalizePronunciationProgress(
+  value: unknown,
+): PronunciationProgressSnapshot {
+  if (!value || typeof value !== "object") return EMPTY_SNAPSHOT;
 
   try {
-    const stored = JSON.parse(serialized) as Partial<StoredPronunciationProgress>;
+    const stored = value as Partial<SerializedPronunciationProgress>;
     const completedVerseKeys = Array.isArray(stored.completedVerseKeys)
       ? stored.completedVerseKeys.filter(
-          (verseKey): verseKey is string => typeof verseKey === "string",
+          (verseKey): verseKey is string =>
+            typeof verseKey === "string" && isValidVerseKey(verseKey),
         )
       : [];
+    const completedVerseKeySet = new Set(completedVerseKeys);
     const chapterVerseCounts =
       stored.chapterVerseCounts &&
       typeof stored.chapterVerseCounts === "object"
@@ -86,6 +121,7 @@ function parseSnapshot(serialized: string | null): PronunciationProgressSnapshot
             Object.entries(stored.completedVerseDetails).flatMap(
               ([verseKey, detail]) => {
                 if (
+                  !completedVerseKeySet.has(verseKey) ||
                   !detail ||
                   typeof detail !== "object" ||
                   typeof detail.completedAt !== "string" ||
@@ -99,6 +135,11 @@ function parseSnapshot(serialized: string | null): PronunciationProgressSnapshot
                     verseKey,
                     {
                       completedAt: detail.completedAt,
+                      completedDate:
+                        typeof detail.completedDate === "string" &&
+                        /^\d{4}-\d{2}-\d{2}$/.test(detail.completedDate)
+                          ? detail.completedDate
+                          : getKoreanCalendarDate(detail.completedAt),
                       koreanText:
                         typeof detail.koreanText === "string"
                           ? detail.koreanText.trim() || undefined
@@ -112,10 +153,20 @@ function parseSnapshot(serialized: string | null): PronunciationProgressSnapshot
         : {};
 
     return {
-      completedVerseKeys: new Set(completedVerseKeys),
+      completedVerseKeys: completedVerseKeySet,
       chapterVerseCounts,
       completedVerseDetails,
     };
+  } catch {
+    return EMPTY_SNAPSHOT;
+  }
+}
+
+function parseSnapshot(serialized: string | null): PronunciationProgressSnapshot {
+  if (!serialized) return EMPTY_SNAPSHOT;
+
+  try {
+    return normalizePronunciationProgress(JSON.parse(serialized) as unknown);
   } catch {
     return EMPTY_SNAPSHOT;
   }
@@ -125,18 +176,29 @@ function emitChange() {
   listeners.forEach((listener) => listener());
 }
 
-function persistSnapshot(snapshot: PronunciationProgressSnapshot) {
-  const serialized = JSON.stringify({
+export function serializePronunciationProgressSnapshot(
+  snapshot: PronunciationProgressSnapshot,
+): SerializedPronunciationProgress {
+  return {
     completedVerseKeys: Array.from(snapshot.completedVerseKeys),
-    chapterVerseCounts: snapshot.chapterVerseCounts,
-    completedVerseDetails: snapshot.completedVerseDetails,
-  } satisfies StoredPronunciationProgress);
+    chapterVerseCounts: { ...snapshot.chapterVerseCounts },
+    completedVerseDetails: { ...snapshot.completedVerseDetails },
+  };
+}
+
+function persistSnapshot(snapshot: PronunciationProgressSnapshot) {
+  const serialized = JSON.stringify(
+    serializePronunciationProgressSnapshot(snapshot),
+  );
 
   cachedSerialized = serialized;
   cachedSnapshot = snapshot;
 
   try {
-    window.localStorage.setItem(STORAGE_KEY, serialized);
+    window.localStorage.setItem(
+      PRONUNCIATION_PROGRESS_STORAGE_KEY,
+      serialized,
+    );
   } catch {
     // 저장 공간을 사용할 수 없어도 현재 화면의 진행 상태는 유지합니다.
   }
@@ -151,7 +213,7 @@ export function subscribeToPronunciationProgress(
 
   if (!storageListenerAttached && typeof window !== "undefined") {
     window.addEventListener("storage", (event) => {
-      if (event.key !== STORAGE_KEY) return;
+      if (event.key !== PRONUNCIATION_PROGRESS_STORAGE_KEY) return;
       cachedSerialized = undefined;
       cachedSnapshot = EMPTY_SNAPSHOT;
       emitChange();
@@ -167,7 +229,9 @@ export function getPronunciationProgressSnapshot(): PronunciationProgressSnapsho
 
   let serialized: string | null;
   try {
-    serialized = window.localStorage.getItem(STORAGE_KEY);
+    serialized = window.localStorage.getItem(
+      PRONUNCIATION_PROGRESS_STORAGE_KEY,
+    );
   } catch {
     serialized = null;
   }
@@ -187,7 +251,7 @@ export function clearPronunciationProgress(): void {
   if (typeof window === "undefined") return;
 
   try {
-    window.localStorage.removeItem(STORAGE_KEY);
+    window.localStorage.removeItem(PRONUNCIATION_PROGRESS_STORAGE_KEY);
   } catch {
     // 저장 공간에 접근할 수 없어도 현재 화면의 진행 상태는 비웁니다.
   }
@@ -195,6 +259,80 @@ export function clearPronunciationProgress(): void {
   cachedSerialized = null;
   cachedSnapshot = EMPTY_SNAPSHOT;
   emitChange();
+}
+
+export function replacePronunciationProgress(
+  value: unknown,
+): PronunciationProgressSnapshot {
+  if (typeof window === "undefined") return EMPTY_SNAPSHOT;
+
+  const snapshot = normalizePronunciationProgress(value);
+  persistSnapshot(snapshot);
+  return snapshot;
+}
+
+export function mergePronunciationProgress(
+  localValue: unknown,
+  remoteValue: unknown,
+): PronunciationProgressSnapshot {
+  const local = normalizePronunciationProgress(localValue);
+  const remote = normalizePronunciationProgress(remoteValue);
+  const detailEntries = new Map<string, CompletedPronunciationVerseDetail>();
+
+  for (const snapshot of [remote, local]) {
+    for (const [verseKey, detail] of Object.entries(
+      snapshot.completedVerseDetails,
+    )) {
+      const current = detailEntries.get(verseKey);
+      if (
+        !current ||
+        new Date(detail.completedAt).getTime() >
+          new Date(current.completedAt).getTime()
+      ) {
+        detailEntries.set(verseKey, detail);
+      }
+    }
+  }
+
+  const insertionOrder = new Map<string, number>();
+  let insertionIndex = 0;
+  for (const verseKey of [
+    ...remote.completedVerseKeys,
+    ...local.completedVerseKeys,
+  ]) {
+    insertionOrder.set(verseKey, insertionIndex++);
+  }
+  const completedVerseKeys = new Set(
+    Array.from(insertionOrder.keys()).sort((left, right) => {
+      const leftTime = detailEntries.get(left)?.completedAt;
+      const rightTime = detailEntries.get(right)?.completedAt;
+      const dateDifference =
+        (leftTime ? new Date(leftTime).getTime() : 0) -
+        (rightTime ? new Date(rightTime).getTime() : 0);
+      return (
+        dateDifference ||
+        (insertionOrder.get(left) ?? 0) -
+          (insertionOrder.get(right) ?? 0)
+      );
+    }),
+  );
+  const chapterVerseCounts: Record<string, number> = {
+    ...remote.chapterVerseCounts,
+  };
+  for (const [chapterKey, count] of Object.entries(
+    local.chapterVerseCounts,
+  )) {
+    chapterVerseCounts[chapterKey] = Math.max(
+      chapterVerseCounts[chapterKey] ?? 0,
+      count,
+    );
+  }
+
+  return {
+    completedVerseKeys,
+    chapterVerseCounts,
+    completedVerseDetails: Object.fromEntries(detailEntries),
+  };
 }
 
 export function deletePronunciationProgressByBooks(
@@ -286,8 +424,10 @@ export function setPronunciationVerseCompleted(
     ...current.completedVerseDetails,
   };
   if (completed) {
+    const completedAt = new Date();
     nextCompletedVerseDetails[verseKey] = {
-      completedAt: new Date().toISOString(),
+      completedAt: completedAt.toISOString(),
+      completedDate: getKoreanCalendarDate(completedAt),
       koreanText: koreanText?.trim() || undefined,
     };
   } else {

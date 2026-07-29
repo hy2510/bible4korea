@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState, useSyncExternalStore } from "react";
+import { useAuth } from "@/components/AuthProvider";
 import type { BibleBook } from "@/lib/bible-api";
 import {
   deleteLastReadBooks,
@@ -39,6 +40,7 @@ export function ReadingHistoryManager({
   books,
   bibleVerseCounts,
 }: ReadingHistoryManagerProps) {
+  const { user, username, loading, configured, syncStatus } = useAuth();
   const lastReadChapters = useSyncExternalStore(
     subscribeToLastReadChapters,
     getLastReadChapters,
@@ -57,6 +59,41 @@ export function ReadingHistoryManager({
     read: new Set(),
   }));
   const [deletedMessage, setDeletedMessage] = useState("");
+
+  if (loading) {
+    return (
+      <section className="mt-8">
+        <div className="rounded-xl border border-border bg-surface-muted px-4 py-4 text-sm text-muted">
+          로그인 상태를 확인하고 있습니다.
+        </div>
+      </section>
+    );
+  }
+
+  if (!user) {
+    return (
+      <section className="mt-8">
+        <div className="rounded-2xl border border-border bg-surface px-5 py-10 text-center sm:px-8">
+          <p className="text-sm leading-relaxed text-muted">
+            최근 본 말씀과 최근 읽은 말씀 기록은 로그인한 회원만 확인하고
+            동기화할 수 있습니다.
+          </p>
+          {configured ? (
+            <Link
+              href="/login"
+              className="mt-5 inline-flex min-h-11 cursor-pointer items-center justify-center rounded-xl bg-amber-800 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-amber-900"
+            >
+              로그인
+            </Link>
+          ) : (
+            <p className="mt-4 text-xs text-rose-700 dark:text-rose-400">
+              Supabase 연결 정보를 확인해 주세요.
+            </p>
+          )}
+        </div>
+      </section>
+    );
+  }
 
   const viewedRecords: BookHistoryRecord[] = books.flatMap((book) => {
     const count = lastReadChapters.filter(
@@ -141,6 +178,29 @@ export function ReadingHistoryManager({
 
   return (
     <section className="mt-8">
+      <div className="mb-5 rounded-xl border border-border bg-surface-muted px-4 py-3 text-sm">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="min-w-0 truncate text-foreground">
+            <strong className="font-semibold">{username ?? "회원"}</strong>
+          </p>
+          <p
+            className={
+              syncStatus === "error"
+                ? "text-rose-700 dark:text-rose-400"
+                : "text-muted"
+            }
+          >
+            {syncStatus === "syncing"
+              ? "DB 동기화 중…"
+              : syncStatus === "error"
+                ? "DB 동기화를 확인해 주세요."
+                : syncStatus === "synced"
+                  ? "DB 동기화 완료"
+                  : "DB 동기화 준비 중…"}
+          </p>
+        </div>
+      </div>
+
       <div
         role="tablist"
         aria-label="관리할 기록 선택"
@@ -155,7 +215,7 @@ export function ReadingHistoryManager({
             aria-selected={selectedTab === tab}
             aria-controls={`management-panel-${tab}`}
             onClick={() => changeTab(tab)}
-            className={`min-h-11 rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
+            className={`min-h-11 cursor-pointer rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
               selectedTab === tab
                 ? "bg-white text-stone-900 shadow-sm dark:bg-stone-800 dark:text-stone-100"
                 : "text-stone-500 hover:text-stone-800 dark:text-stone-400 dark:hover:text-stone-200"
@@ -197,7 +257,7 @@ export function ReadingHistoryManager({
                 </p>
                 <Link
                   href="/books"
-                  className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl bg-amber-800 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-amber-900"
+                  className="mt-5 inline-flex min-h-11 cursor-pointer items-center justify-center rounded-xl bg-amber-800 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-amber-900"
                 >
                   성경 목차 보기
                 </Link>
@@ -211,7 +271,7 @@ export function ReadingHistoryManager({
                   <button
                     type="button"
                     onClick={toggleAll}
-                    className="min-h-10 rounded-lg px-3 text-sm font-medium text-amber-800 transition-colors hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-950/30"
+                    className="min-h-10 cursor-pointer rounded-lg px-3 text-sm font-medium text-amber-800 transition-colors hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-950/30"
                   >
                     {allSelected ? "전체 선택 해제" : "전체 선택"}
                   </button>
@@ -274,7 +334,7 @@ export function ReadingHistoryManager({
                   type="button"
                   onClick={deleteSelectedHistory}
                   disabled={selectedSlugs.size === 0}
-                  className="mt-6 inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-rose-700 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-rose-800 disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto"
+                  className="mt-6 inline-flex min-h-12 w-full cursor-pointer items-center justify-center rounded-xl bg-rose-700 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-rose-800 disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto"
                 >
                   선택한 {HISTORY_TAB_LABELS[tab]} 삭제
                 </button>

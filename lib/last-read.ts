@@ -34,7 +34,9 @@ function isValidEntry(entry: unknown): entry is LastReadChapter {
     Number.isInteger(item.chapter) &&
     item.chapter >= 1 &&
     Number.isInteger(verse) &&
-    verse >= 1
+    verse >= 1 &&
+    typeof item.readAt === "string" &&
+    !Number.isNaN(new Date(item.readAt).getTime())
   );
 }
 
@@ -63,20 +65,24 @@ function dedupeByChapter(entries: LastReadChapter[]): LastReadChapter[] {
   );
 }
 
-function parseStoredEntries(raw: string): LastReadChapter[] {
-  const parsed = JSON.parse(raw) as unknown;
-
-  if (Array.isArray(parsed)) {
+export function normalizeLastReadChapters(
+  value: unknown,
+): LastReadChapter[] {
+  if (Array.isArray(value)) {
     return dedupeByChapter(
-      parsed.filter(isValidEntry).map(normalizeEntry),
+      value.filter(isValidEntry).map(normalizeEntry),
     ).slice(0, MAX_LAST_READ_COUNT);
   }
 
-  if (isValidEntry(parsed)) {
-    return [normalizeEntry(parsed)];
+  if (isValidEntry(value)) {
+    return [normalizeEntry(value)];
   }
 
   return [];
+}
+
+function parseStoredEntries(raw: string): LastReadChapter[] {
+  return normalizeLastReadChapters(JSON.parse(raw) as unknown);
 }
 
 function readStoredEntries(): LastReadChapter[] {
@@ -135,6 +141,39 @@ export function clearLastReadChapters(): void {
   }
 
   notifyLastReadUpdated();
+}
+
+export function replaceLastReadChapters(entries: unknown): LastReadChapter[] {
+  if (typeof window === "undefined") return [];
+
+  const normalized = normalizeLastReadChapters(entries);
+  cachedEntries = normalized;
+
+  try {
+    if (normalized.length === 0) {
+      localStorage.removeItem(LAST_READ_STORAGE_KEY);
+    } else {
+      localStorage.setItem(
+        LAST_READ_STORAGE_KEY,
+        JSON.stringify(normalized),
+      );
+    }
+  } catch {
+    // 저장 공간에 접근할 수 없어도 현재 화면에서는 교체된 기록을 사용합니다.
+  }
+
+  notifyLastReadUpdated();
+  return normalized;
+}
+
+export function mergeLastReadChapters(
+  localEntries: unknown,
+  remoteEntries: unknown,
+): LastReadChapter[] {
+  return normalizeLastReadChapters([
+    ...normalizeLastReadChapters(localEntries),
+    ...normalizeLastReadChapters(remoteEntries),
+  ]);
 }
 
 export function deleteLastReadBooks(bookSlugs: ReadonlySet<string>): void {

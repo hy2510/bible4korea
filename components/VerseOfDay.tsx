@@ -18,7 +18,9 @@ const verseOfDaySectionClassName = `mb-13 ${featuredPanelClassName} p-6 sm:p-8`;
 function VerseOfDaySkeleton() {
   return (
     <section className={verseOfDaySectionClassName}>
-      <p className={`mb-3 uppercase tracking-wider ${featuredLabelClassName}`}>
+      <p
+        className={`mb-3 !font-semibold uppercase tracking-wider ${featuredLabelClassName}`}
+      >
         오늘의 말씀
       </p>
       <div className="h-16 animate-pulse rounded-lg bg-amber-100/60 dark:bg-stone-800/60" />
@@ -44,7 +46,9 @@ export function VerseOfDay() {
 
   return (
     <section className={verseOfDaySectionClassName}>
-      <p className={`mb-3 uppercase tracking-wider ${featuredLabelClassName}`}>
+      <p
+        className={`mb-3 !font-semibold uppercase tracking-wider ${featuredLabelClassName}`}
+      >
         오늘의 말씀
       </p>
       <blockquote className={`text-lg sm:text-xl ${featuredBodyClassName}`}>

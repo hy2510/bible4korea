@@ -108,7 +108,7 @@ export function PwaInstallPrompt() {
             <button
               type="button"
               onClick={handleInstall}
-              className="flex-1 rounded-xl bg-amber-800 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-amber-900"
+              className="flex-1 cursor-pointer rounded-xl bg-amber-800 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-amber-900"
             >
               설치하기
             </button>
@@ -116,7 +116,7 @@ export function PwaInstallPrompt() {
           <button
             type="button"
             onClick={dismiss}
-            className={`rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm font-medium text-stone-700 transition-colors hover:bg-stone-50 ${
+            className={`cursor-pointer rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm font-medium text-stone-700 transition-colors hover:bg-stone-50 ${
               installEvent ? "" : "flex-1"
             }`}
           >

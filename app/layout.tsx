@@ -2,6 +2,8 @@ import { Noto_Serif_KR, Noto_Sans, Noto_Sans_Hebrew } from "next/font/google";
 import { Geist } from "next/font/google";
 import type { Metadata, Viewport } from "next";
 import { Header } from "@/components/Header";
+import { AuthProvider } from "@/components/AuthProvider";
+import { DailyGoalProvider } from "@/components/DailyGoalProvider";
 import { BibleSearchProvider } from "@/components/BibleSearch";
 import { PwaInstallPrompt } from "@/components/PwaInstallPrompt";
 import { ScrollToTopButton } from "@/components/ScrollToTopButton";
@@ -68,17 +70,21 @@ export default function RootLayout({
       <body className="flex min-h-full flex-col bg-background font-sans text-foreground">
         <PreferencesScript />
         <ThemeProvider>
-          <ReadingFontSizeProvider>
-            <BibleSearchProvider>
-              <SiteJsonLd />
-              <Header />
-              <main className="notranslate flex-1">{children}</main>
-              <SiteFooter />
-              <ScrollToTopButton />
-              <PwaInstallPrompt />
-              <ServiceWorkerRegister />
-            </BibleSearchProvider>
-          </ReadingFontSizeProvider>
+          <AuthProvider>
+            <DailyGoalProvider>
+              <ReadingFontSizeProvider>
+                <BibleSearchProvider>
+                  <SiteJsonLd />
+                  <Header />
+                  <main className="notranslate flex-1">{children}</main>
+                  <SiteFooter />
+                  <ScrollToTopButton />
+                  <PwaInstallPrompt />
+                  <ServiceWorkerRegister />
+                </BibleSearchProvider>
+              </ReadingFontSizeProvider>
+            </DailyGoalProvider>
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

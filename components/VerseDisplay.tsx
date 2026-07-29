@@ -18,6 +18,8 @@ const SHOW_SEFARIA_COMMENTARY_BUTTON = false;
 
 interface VerseDisplayProps extends ChapterVerse {
   onVerseSelect?: (verseNum: number) => void;
+  /** false in single-verse mode so #verse hash does not trigger a second browser scroll */
+  registerAnchor?: boolean;
   highlightStrongs?: string;
   pronunciationCharacterCount?: number;
   pronunciationCompleted?: boolean;
@@ -33,6 +35,7 @@ function VerseDisplayComponent({
   hebrewWords,
   greekWords,
   onVerseSelect,
+  registerAnchor = true,
   highlightStrongs,
   pronunciationCharacterCount,
   pronunciationCompleted = false,
@@ -45,8 +48,8 @@ function VerseDisplayComponent({
 
   return (
     <div
-      id={`verse-${verseNum}`}
-      className={`scroll-mt-24 rounded-xl border border-transparent px-3 py-3 transition-[background-color,border-color,box-shadow] duration-500${
+      {...(registerAnchor ? { id: `verse-${verseNum}` } : {})}
+      className={`rounded-xl border border-transparent px-3 py-3 transition-[background-color,border-color,box-shadow] duration-500${
         onVerseSelect ? " hover:border-stone-100 hover:bg-stone-50/60" : ""
       }`}
     >

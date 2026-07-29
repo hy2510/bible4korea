@@ -13,7 +13,7 @@ export function ChapterNav({ book, chapter, className = "" }: ChapterNavProps) {
   const hasNext = chapter < book.chapters;
 
   const linkClassName =
-    "inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-700 transition-colors hover:border-amber-300 hover:text-amber-900 sm:px-4";
+    "inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-700 transition-colors hover:border-amber-300 hover:text-amber-900 sm:px-4";
 
   const spacerClassName = "w-10 sm:w-[5.5rem]";
 

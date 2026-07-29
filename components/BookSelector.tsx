@@ -37,7 +37,7 @@ export function BookSelector({ books, currentBookSlug }: BookSelectorProps) {
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="inline-flex w-fit items-center gap-2 rounded-xl border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-800 transition-colors hover:border-amber-300"
+        className="inline-flex w-fit cursor-pointer items-center gap-2 rounded-xl border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-800 transition-colors hover:border-amber-300"
       >
         <span>{currentBook?.name ?? "성경 선택"}</span>
         <svg
@@ -126,9 +126,10 @@ function BookSection({
         {books.map((book) => (
           <Link
             key={book.id}
-            href={`/read/${book.slug}/1`}
+            href={`/read/${book.slug}/1?from=book-shortcut`}
+            scroll={false}
             onClick={onSelect}
-            className={`rounded-lg px-2 py-1.5 text-center text-xs transition-colors ${
+            className={`cursor-pointer rounded-lg px-2 py-1.5 text-center text-xs transition-colors ${
               book.slug === currentBookSlug
                 ? "bg-amber-800 text-white"
                 : "text-stone-600 bg-stone-50 hover:bg-amber-50 hover:text-amber-900"

@@ -28,6 +28,7 @@ export function VerseNav({
           type="button"
           onClick={onPrev}
           aria-label="이전 절"
+          aria-keyshortcuts="ArrowLeft"
           className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-700 transition-colors hover:border-amber-300 hover:text-amber-900 sm:px-4"
         >
           <ChevronLeftIcon />
@@ -44,6 +45,7 @@ export function VerseNav({
           type="button"
           onClick={onNext}
           aria-label="다음 절"
+          aria-keyshortcuts="ArrowRight"
           className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-700 transition-colors hover:border-amber-300 hover:text-amber-900 sm:px-4"
         >
           <span className="hidden sm:inline">다음 절</span>

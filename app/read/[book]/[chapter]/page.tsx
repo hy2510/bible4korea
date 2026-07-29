@@ -7,10 +7,16 @@ import { parseStrongsQuery } from "@/lib/strongs-links";
 
 interface PageProps {
   params: Promise<{ book: string; chapter: string }>;
-  searchParams: Promise<{ strongs?: string; from?: string }>;
+  searchParams: Promise<{
+    strongs?: string;
+    from?: string;
+    practice?: string;
+  }>;
 }
 
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: PageProps): Promise<Metadata> {
   const { book: bookSlug, chapter: chapterStr } = await params;
   const book = getBookSync(bookSlug);
   const chapter = Number(chapterStr);
@@ -32,12 +38,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function ReadPage({ params, searchParams }: PageProps) {
   const { book: bookSlug, chapter: chapterStr } = await params;
-  const { strongs, from } = await searchParams;
+  const { strongs, from, practice } = await searchParams;
   const chapterNum = Number(chapterStr);
   const books = getBooksSync();
   const book = getBookSync(bookSlug);
   const highlightStrongs = parseStrongsQuery(strongs ?? "") ?? undefined;
   const jumpFromSearch = from === "search";
+  const startAtTop = from === "book-list" || from === "book-shortcut";
 
   if (
     !book ||
@@ -55,6 +62,8 @@ export default async function ReadPage({ params, searchParams }: PageProps) {
       chapterNum={chapterNum}
       highlightStrongs={highlightStrongs}
       jumpFromSearch={jumpFromSearch}
+      startAtTop={startAtTop}
+      openPronunciationPractice={practice === "1"}
     />
   );
 }

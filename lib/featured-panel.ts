@@ -17,7 +17,7 @@ export const featuredBodyClassName =
 export const featuredMetaClassName = "text-sm text-stone-500";
 
 export const featuredLinkClassName =
-  "text-sm text-amber-800 underline-offset-2 hover:underline dark:text-amber-500/90";
+  "cursor-pointer text-sm font-semibold text-amber-800 transition-colors hover:text-amber-950 dark:text-amber-400 dark:hover:text-amber-300";
 
 /** Strong's match / selected word in verse original-language row */
 export const strongsWordHighlightClassName =

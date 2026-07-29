@@ -90,6 +90,49 @@ const ERROR_MESSAGES: Record<string, string> = {
   network: "음성 인식 서비스에 연결하지 못했습니다. 연결 상태를 확인해 주세요.",
   "no-speech": "목소리가 들리지 않았습니다. 마이크 가까이에서 다시 읽어 주세요.",
 };
+const SKIP_WORD_CACHE_DURATION_MS = 30_000;
+
+let cachedSkipWords:
+  | {
+      words: string[];
+      expiresAt: number;
+    }
+  | undefined;
+let pendingSkipWords: Promise<string[]> | undefined;
+
+async function loadPronunciationSkipWords(): Promise<string[]> {
+  if (cachedSkipWords && cachedSkipWords.expiresAt > Date.now()) {
+    return cachedSkipWords.words;
+  }
+  if (pendingSkipWords) return pendingSkipWords;
+
+  pendingSkipWords = fetch("/api/pronunciation-skips", {
+    cache: "no-store",
+  })
+    .then(async (response) => {
+      const data = (await response.json().catch(() => null)) as
+        | { words?: unknown }
+        | null;
+      if (!response.ok || !Array.isArray(data?.words)) return [];
+
+      return data.words.filter(
+        (word): word is string => typeof word === "string",
+      );
+    })
+    .catch(() => [])
+    .then((words) => {
+      cachedSkipWords = {
+        words,
+        expiresAt: Date.now() + SKIP_WORD_CACHE_DURATION_MS,
+      };
+      return words;
+    })
+    .finally(() => {
+      pendingSkipWords = undefined;
+    });
+
+  return pendingSkipWords;
+}
 
 function getSpeechRecognitionConstructor(): SpeechRecognitionConstructorLike | null {
   if (typeof window === "undefined") return null;
@@ -113,6 +156,30 @@ function getServerSpeechRecognitionSupportSnapshot(): SupportStatus {
   return "checking";
 }
 
+function getPronunciationStarRating(score: number) {
+  if (score >= 70) return 3;
+  if (score >= 50) return 2;
+  if (score >= 30) return 1;
+  return 0;
+}
+
+function RoundedStarIcon({ active }: { active: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill={active ? "currentColor" : "none"}
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className="-mx-1 size-8"
+    >
+      <path d="m12 3.4 2.42 4.9 5.41.79-3.91 3.81.92 5.39L12 15.76l-4.84 2.55.92-5.39-3.91-3.81 5.41-.79L12 3.4Z" />
+    </svg>
+  );
+}
+
 export function VersePronunciationPractice({
   bookName,
   chapter,
@@ -129,6 +196,7 @@ export function VersePronunciationPractice({
   onAutoStartHandled,
 }: VersePronunciationPracticeProps) {
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const consecutiveFailureCountRef = useRef(0);
   const supportStatus = useSyncExternalStore(
     subscribeToSpeechRecognitionSupport,
     getSpeechRecognitionSupportSnapshot,
@@ -137,7 +205,21 @@ export function VersePronunciationPractice({
   const [status, setStatus] = useState<RecognitionStatus>("idle");
   const [evaluation, setEvaluation] =
     useState<PronunciationEvaluation | null>(null);
+  const [consecutiveFailureCount, setConsecutiveFailureCount] = useState(0);
+  const [ignoredWords, setIgnoredWords] = useState<string[] | null>(null);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+
+    void loadPronunciationSkipWords().then((words) => {
+      if (active) setIgnoredWords(words);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -156,7 +238,7 @@ export function VersePronunciationPractice({
 
   const startRecognition = useCallback(() => {
     const SpeechRecognition = getSpeechRecognitionConstructor();
-    if (!SpeechRecognition) return;
+    if (!SpeechRecognition || ignoredWords === null) return;
 
     recognitionRef.current?.abort();
 
@@ -202,7 +284,11 @@ export function VersePronunciationPractice({
         `${finalTranscript} ${nextInterimTranscript}`.trim();
       furthestCharacterCount = Math.max(
         furthestCharacterCount,
-        getPronunciationCharacterCount(text, recognizedText),
+        getPronunciationCharacterCount(
+          text,
+          recognizedText,
+          ignoredWords,
+        ),
       );
       onCharacterProgressChange(furthestCharacterCount);
 
@@ -241,9 +327,23 @@ export function VersePronunciationPractice({
         return;
       }
 
-      const nextEvaluation = evaluatePronunciation(text, recognizedText);
+      const nextEvaluation = evaluatePronunciation(
+        text,
+        recognizedText,
+        ignoredWords,
+      );
       setEvaluation(nextEvaluation);
-      onCompletionChange(nextEvaluation.tone !== "retry");
+
+      if (nextEvaluation.tone === "retry") {
+        const nextFailureCount = consecutiveFailureCountRef.current + 1;
+        consecutiveFailureCountRef.current = nextFailureCount;
+        setConsecutiveFailureCount(nextFailureCount);
+        onCompletionChange(nextFailureCount >= 2);
+      } else {
+        consecutiveFailureCountRef.current = 0;
+        setConsecutiveFailureCount(0);
+        onCompletionChange(true);
+      }
     };
 
     setEvaluation(null);
@@ -261,11 +361,12 @@ export function VersePronunciationPractice({
   }, [
     onCharacterProgressChange,
     onCompletionChange,
+    ignoredWords,
     text,
   ]);
 
   useEffect(() => {
-    if (!autoStart) return;
+    if (!autoStart || ignoredWords === null) return;
 
     const timeoutId = window.setTimeout(() => {
       onAutoStartHandled();
@@ -273,7 +374,7 @@ export function VersePronunciationPractice({
     }, 0);
 
     return () => window.clearTimeout(timeoutId);
-  }, [autoStart, onAutoStartHandled, startRecognition]);
+  }, [autoStart, ignoredWords, onAutoStartHandled, startRecognition]);
 
   const stopRecognition = () => {
     recognitionRef.current?.stop();
@@ -302,6 +403,12 @@ export function VersePronunciationPractice({
       : evaluation.tone === "good"
         ? "border-amber-200 bg-amber-50 text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200"
         : "border-rose-200 bg-rose-50 text-rose-950 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-200";
+  const starCount = evaluation
+    ? getPronunciationStarRating(evaluation.score)
+    : null;
+  const canAdvance =
+    evaluation !== null &&
+    (evaluation.tone !== "retry" || consecutiveFailureCount >= 2);
 
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[70] p-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] sm:p-5">
@@ -332,7 +439,7 @@ export function VersePronunciationPractice({
             type="button"
             onClick={closePractice}
             aria-label="소리 내어 읽기 닫기"
-            className="-mr-1 -mt-1 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-current opacity-60 transition-[background-color,opacity] hover:bg-black/5 hover:opacity-100 dark:hover:bg-white/10"
+            className="-mr-1 -mt-1 inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full text-current opacity-60 transition-[background-color,opacity] hover:bg-black/5 hover:opacity-100 dark:hover:bg-white/10"
           >
             <span aria-hidden className="text-xl leading-none">
               ×
@@ -344,10 +451,11 @@ export function VersePronunciationPractice({
           {supportStatus === "supported" && !evaluation && (
             <button
               type="button"
+              disabled={ignoredWords === null}
               onClick={
                 status === "listening" ? stopRecognition : startRecognition
               }
-              className={`inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors ${
+              className={`inline-flex min-h-11 w-full shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors disabled:cursor-wait disabled:opacity-60 ${
                 status === "listening"
                   ? "bg-rose-600 text-white hover:bg-rose-700"
                   : "bg-amber-800 text-white hover:bg-amber-900 dark:bg-amber-700 dark:hover:bg-amber-600"
@@ -364,7 +472,11 @@ export function VersePronunciationPractice({
                 )}
                 <MicrophoneIcon className="relative h-5 w-5" />
               </span>
-              {status === "listening" ? "읽기 마치기" : "읽기 시작"}
+              {ignoredWords === null
+                ? "평가 설정 불러오는 중…"
+                : status === "listening"
+                  ? "읽기 마치기"
+                  : "읽기 시작"}
             </button>
           )}
         </div>
@@ -396,33 +508,48 @@ export function VersePronunciationPractice({
 
         {evaluation && (
           <div aria-live="polite" className="mt-4">
-            <div className="flex items-baseline justify-between gap-4">
+            <div className="flex items-center justify-between gap-4">
               <p className="text-sm font-semibold">내 발음 평가</p>
-              <p className="text-2xl font-bold tabular-nums">
-                {evaluation.score}
-                <span className="ml-0.5 text-sm">%</span>
-              </p>
+              {starCount !== null && (
+                <div
+                  role="img"
+                  aria-label={`발음 평가 별 ${starCount}개`}
+                  className="flex items-center text-yellow-500 dark:text-yellow-400"
+                >
+                  {Array.from({ length: 3 }, (_, index) => (
+                    <span
+                      key={index}
+                      aria-hidden="true"
+                      className={
+                        starCount > 0 && index >= starCount
+                          ? "opacity-30"
+                          : undefined
+                      }
+                    >
+                      <RoundedStarIcon active={index < starCount} />
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
             <div
               className={`mt-4 grid gap-2 ${
-                evaluation.tone === "retry"
-                  ? "grid-cols-1"
-                  : "grid-cols-2"
+                canAdvance ? "grid-cols-2" : "grid-cols-1"
               }`}
             >
               <button
                 type="button"
                 onClick={startRecognition}
-                className="inline-flex min-h-11 items-center justify-center rounded-xl border border-black/10 bg-white/70 px-4 py-2.5 text-sm font-semibold text-stone-900 transition-colors hover:bg-white dark:border-white/15 dark:bg-stone-950/30 dark:text-white dark:hover:bg-stone-950/50"
+                className="inline-flex min-h-11 cursor-pointer items-center justify-center rounded-xl border border-black/10 bg-white/70 px-4 py-2.5 text-sm font-semibold text-stone-900 transition-colors hover:bg-white dark:border-white/15 dark:bg-stone-950/30 dark:text-white dark:hover:bg-stone-950/50"
               >
                 다시 읽기
               </button>
-              {evaluation.tone !== "retry" && (
+              {canAdvance && (
                 <button
                   type="button"
                   onClick={hasNextVerse ? onNextVerse : onNextChapter}
                   disabled={!hasNextVerse && !hasNextChapter}
-                  className="inline-flex min-h-11 items-center justify-center rounded-xl bg-stone-900 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-white dark:text-stone-900 dark:hover:bg-stone-100"
+                  className="inline-flex min-h-11 cursor-pointer items-center justify-center rounded-xl bg-stone-900 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-white dark:text-stone-900 dark:hover:bg-stone-100"
                 >
                   {hasNextVerse ? "다음 구절" : "읽기 완료"}
                 </button>

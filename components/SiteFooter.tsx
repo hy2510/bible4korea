@@ -5,6 +5,7 @@ import { useReadingFontSize } from "@/components/ReadingFontSizeProvider";
 import { useTheme } from "@/components/ThemeProvider";
 import type { ReadingFontSize } from "@/lib/reading-font-size";
 import { SAFE_AREA } from "@/lib/safe-area";
+import { SITE_NAME } from "@/lib/seo";
 import type { ThemeMode } from "@/lib/theme";
 
 function toggleButtonClassName(active: boolean) {
@@ -84,6 +85,8 @@ function ReadingFontSizeToggle() {
 }
 
 export function SiteFooter() {
+  const currentYear = new Date().getFullYear();
+
   return (
     <footer
       className={`notranslate border-t border-border bg-background pt-6 ${SAFE_AREA.x} ${SAFE_AREA.bottomLg}`}
@@ -93,24 +96,22 @@ export function SiteFooter() {
           <ThemeToggle />
           <ReadingFontSizeToggle />
         </div>
-        <p className="text-center text-xs leading-relaxed text-muted">
-          성경 본문: Midvash API · 개역한글판 · 구약 히브리어(OSHB) · 신약
-          헬라어(MorphGNT/SBLGNT) · Strong&apos;s (LOG) | 개발 참여: 호열과
-          사랑하는 라엘 · 준범 · 준서
-        </p>
-        <div className="flex flex-col items-center gap-2">
-          <Link
-            href="/licenses"
-            className="text-xs text-muted underline-offset-2 transition-colors hover:text-foreground hover:underline"
-          >
-            오픈 소스 라이선스
-          </Link>
-          <Link
-            href="/reading-history"
-            className="text-xs text-muted underline-offset-2 transition-colors hover:text-rose-700 hover:underline dark:hover:text-rose-400"
-          >
-            기록 관리
-          </Link>
+        <div className="grid justify-items-center gap-y-2 text-center text-xs text-muted">
+          <p className="leading-5">
+            Copyright ©{currentYear} {SITE_NAME}. All rights reserved.
+          </p>
+          <p className="leading-5">
+            성경 본문: Midvash API · 개역한글판 · 구약 히브리어(OSHB) · 신약
+            헬라어(MorphGNT/SBLGNT) · Strong&apos;s (LOG)
+          </p>
+          <p className="leading-5">
+            <Link
+              href="/licenses"
+              className="cursor-pointer underline-offset-2 transition-colors hover:text-foreground hover:underline"
+            >
+              오픈 소스 라이선스
+            </Link>
+          </p>
         </div>
       </div>
     </footer>

@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { BookSelector } from "@/components/BookSelector";
 import { ChapterReader } from "@/components/ChapterReader";
 import { ChapterSelector } from "@/components/ChapterSelector";
@@ -14,6 +20,9 @@ import {
   subscribeToPronunciationProgress,
 } from "@/lib/pronunciation-progress";
 import type { ChapterVerse } from "@/lib/verse-types";
+import {
+  isElementAlignedBelowHeader,
+} from "@/lib/reading-scroll";
 
 interface MorphologyResponse {
   hebrewWordVerses: HebrewWord[][] | null;
@@ -26,6 +35,8 @@ interface ReadPageContentProps {
   chapterNum: number;
   highlightStrongs?: string;
   jumpFromSearch?: boolean;
+  startAtTop?: boolean;
+  openPronunciationPractice?: boolean;
 }
 
 export function ReadPageContent({
@@ -34,9 +45,13 @@ export function ReadPageContent({
   chapterNum,
   highlightStrongs,
   jumpFromSearch,
+  startAtTop = false,
+  openPronunciationPractice = false,
 }: ReadPageContentProps) {
   const [verses, setVerses] = useState<ChapterVerse[] | null>(null);
   const [error, setError] = useState(false);
+  const [isAtReadingScrollPoint, setIsAtReadingScrollPoint] = useState(false);
+  const readingArticleRef = useRef<HTMLElement>(null);
   const pronunciationProgressSnapshot = useSyncExternalStore(
     subscribeToPronunciationProgress,
     getPronunciationProgressSnapshot,
@@ -47,6 +62,50 @@ export function ReadPageContent({
     book.slug,
     chapterNum,
   );
+
+  useEffect(() => {
+    let frameId: number | null = null;
+
+    const updateReadingScrollPoint = () => {
+      frameId = null;
+      const article = readingArticleRef.current;
+      if (!article) return;
+
+      const isAligned = isElementAlignedBelowHeader(article);
+      setIsAtReadingScrollPoint((current) =>
+        current === isAligned ? current : isAligned,
+      );
+    };
+
+    const scheduleUpdate = () => {
+      if (frameId !== null) return;
+      frameId = window.requestAnimationFrame(updateReadingScrollPoint);
+    };
+
+    scheduleUpdate();
+    window.addEventListener("scroll", scheduleUpdate, { passive: true });
+    window.addEventListener("resize", scheduleUpdate);
+
+    return () => {
+      if (frameId !== null) window.cancelAnimationFrame(frameId);
+      window.removeEventListener("scroll", scheduleUpdate);
+      window.removeEventListener("resize", scheduleUpdate);
+    };
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!startAtTop) return;
+
+    window.scrollTo({ top: 0, behavior: "instant" });
+
+    const url = new URL(window.location.href);
+    url.searchParams.delete("from");
+    window.history.replaceState(
+      window.history.state,
+      "",
+      `${url.pathname}${url.search}${url.hash}`,
+    );
+  }, [startAtTop, book.slug, chapterNum]);
 
   useEffect(() => {
     let cancelled = false;
@@ -118,14 +177,28 @@ export function ReadPageContent({
         />
       </section>
 
-      <article className="mb-[50vh] rounded-2xl border border-stone-200/80 bg-white py-6 px-4 sm:p-10">
-        <header className="mb-8 border-b border-stone-100 pb-6 text-center">
+      <article
+        ref={readingArticleRef}
+        data-chapter-reading-scroll-point
+        className={`mb-[50vh] border border-stone-200/80 bg-white px-4 py-6 transition-[border-radius] duration-200 sm:p-10 ${
+          isAtReadingScrollPoint
+            ? "rounded-b-2xl rounded-t-none"
+            : "rounded-2xl"
+        }`}
+      >
+        <header
+          data-chapter-reading-header
+          className="mb-8 border-b border-stone-100 pb-6 text-center"
+        >
           <h1 className="font-serif text-2xl font-bold text-stone-900 sm:text-3xl">
             {book.name}
           </h1>
           <p className="mt-1 text-lg text-amber-800">{chapterNum}장</p>
           {currentChapterProgress.totalVerses > 0 && (
-            <div className="mx-auto mt-3 max-w-48">
+            <div
+              data-chapter-pronunciation-progress
+              className="mx-auto mt-3 max-w-48"
+            >
               <div
                 role="progressbar"
                 aria-label={`${book.name} ${chapterNum}장 읽기 진행률`}
@@ -174,6 +247,8 @@ export function ReadPageContent({
             verses={verses}
             highlightStrongs={highlightStrongs}
             jumpFromSearch={jumpFromSearch}
+            suppressInitialVerseScroll={startAtTop}
+            openPronunciationPractice={openPronunciationPractice}
           />
         )}
       </article>

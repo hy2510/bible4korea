@@ -1,5 +1,33 @@
 @import "tailwindcss";
 
+@layer base {
+  a[href],
+  button:not(:disabled),
+  label[for],
+  label:has(input[type="checkbox"]:not(:disabled)),
+  label:has(input[type="radio"]:not(:disabled)),
+  select:not(:disabled),
+  summary,
+  [role="button"]:not([aria-disabled="true"]),
+  [role="tab"]:not([aria-disabled="true"]),
+  [role="menuitem"]:not([aria-disabled="true"]),
+  input[type="button"]:not(:disabled),
+  input[type="submit"]:not(:disabled),
+  input[type="reset"]:not(:disabled),
+  input[type="checkbox"]:not(:disabled),
+  input[type="radio"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  input:disabled,
+  select:disabled,
+  textarea:disabled,
+  [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+}
+
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
@@ -25,6 +53,8 @@
   --safe-right: env(safe-area-inset-right, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
+  /* sticky header bar: h-14 + border-b (menu bar only, not safe-area) */
+  --header-offset: calc(3.5rem + 1px);
 }
 
 html[data-reading-font-size="small"] {
@@ -80,6 +110,8 @@ body {
   color: var(--foreground);
   min-height: 100%;
   min-height: -webkit-fill-available;
+  overflow-wrap: break-word;
+  word-break: keep-all;
 }
 
 /* iOS safe-area utilities — class names exported from lib/safe-area.ts */

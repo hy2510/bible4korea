@@ -16,7 +16,7 @@ export function HeaderBrand() {
     <Link
       href="/"
       aria-label={SITE_NAME}
-      className={`group flex items-center rounded-lg transition-colors ${
+      className={`group flex cursor-pointer items-center rounded-lg transition-colors ${
         isHome
           ? ""
           : `${featuredLabelLightTextClassName} hover:text-amber-900 dark:text-stone-600 dark:hover:text-stone-900`
