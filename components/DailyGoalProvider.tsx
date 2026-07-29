@@ -17,6 +17,7 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import {
   countCompletedVersesOnDate,
+  formatKoreanCalendarDateLabel,
   getKoreanCalendarDate,
   isValidDailyGoalTarget,
 } from "@/lib/daily-goal";
@@ -123,9 +124,12 @@ function DailyGoalCelebration({
           height={50}
           className="mx-auto size-[50px] object-contain"
         />
+        <p className="mt-4 text-sm font-medium text-amber-800 dark:text-amber-300">
+          {formatKoreanCalendarDateLabel()}
+        </p>
         <h2
           id="daily-goal-celebration-title"
-          className="mt-5 font-serif text-2xl font-bold text-foreground"
+          className="mt-4 font-serif text-2xl font-bold text-foreground"
         >
           일일 읽기 목표를 달성했어요!
         </h2>

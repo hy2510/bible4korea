@@ -18,6 +18,16 @@ export function getKoreanCalendarDate(date = new Date()): string {
   return `${year}-${month}-${day}`;
 }
 
+export function formatKoreanCalendarDateLabel(date = new Date()): string {
+  return new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    weekday: "long",
+  }).format(date);
+}
+
 export function countCompletedVersesOnDate(
   snapshot: PronunciationProgressSnapshot,
   calendarDate: string,
