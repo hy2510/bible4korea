@@ -1,13 +1,12 @@
 "use client";
 
-import { useUserProfile } from "@/components/UserProfileProvider";
+import { useAuth } from "@/components/AuthProvider";
 
 export function useUserNickname() {
-  const { settings, displayName, loading } = useUserProfile();
+  const { username, loading } = useAuth();
 
   return {
-    nickname: settings?.nickname ?? null,
-    displayName,
+    displayName: username?.trim() || "회원",
     loading,
   };
 }

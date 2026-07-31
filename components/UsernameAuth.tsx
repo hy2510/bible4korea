@@ -5,31 +5,26 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import {
-  getRecoveryQuestionLabel,
-  isKnownRecoveryQuestionId,
   isValidPassword,
-  isValidRecoveryAnswer,
+  isValidRecoveryCode,
   isValidUsername,
   normalizeUsername,
   PASSWORD_MAX_LENGTH,
   PASSWORD_MIN_LENGTH,
-  RECOVERY_QUESTIONS,
-  toInternalAccountEmail,
+  RECOVERY_CODE_LENGTH,
+  toSupabaseLoginIdentifier,
   toSupabasePassword,
   USERNAME_MAX_LENGTH,
   USERNAME_MIN_LENGTH,
-  type RecoveryQuestionId,
 } from "@/lib/auth/credentials";
 import { getSignInErrorMessage } from "@/lib/auth/login-errors";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
 type AuthView = "login" | "signup" | "recovery";
-type RecoveryStep = "username" | "answer";
 type MessageTone = "neutral" | "error" | "success";
 
 interface ApiResult {
   message?: string;
-  question?: string;
 }
 
 const fieldClassName =
@@ -64,13 +59,9 @@ export function UsernameAuth() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirmation, setPasswordConfirmation] = useState("");
-  const [recoveryQuestion, setRecoveryQuestion] =
-    useState<RecoveryQuestionId>(RECOVERY_QUESTIONS[0].id);
-  const [recoveryAnswer, setRecoveryAnswer] = useState("");
-  const [recoveryAnswerConfirmation, setRecoveryAnswerConfirmation] =
+  const [recoveryCode, setRecoveryCode] = useState("");
+  const [recoveryCodeConfirmation, setRecoveryCodeConfirmation] =
     useState("");
-  const [recoveryStep, setRecoveryStep] =
-    useState<RecoveryStep>("username");
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState("");
   const [messageTone, setMessageTone] = useState<MessageTone>("neutral");
@@ -84,9 +75,8 @@ export function UsernameAuth() {
     setView(nextView);
     setPassword("");
     setPasswordConfirmation("");
-    setRecoveryAnswer("");
-    setRecoveryAnswerConfirmation("");
-    setRecoveryStep("username");
+    setRecoveryCode("");
+    setRecoveryCodeConfirmation("");
     setMessage("");
   };
 
@@ -101,7 +91,7 @@ export function UsernameAuth() {
     }
 
     const { error } = await supabase.auth.signInWithPassword({
-      email: toInternalAccountEmail(usernameValue),
+      email: toSupabaseLoginIdentifier(usernameValue),
       password: toSupabasePassword(passwordValue),
     });
     if (error) {
@@ -150,12 +140,12 @@ export function UsernameAuth() {
       showMessage("비밀번호가 서로 일치하지 않습니다.");
       return;
     }
-    if (!isValidRecoveryAnswer(recoveryAnswer)) {
-      showMessage("비밀번호 찾기 답변은 2자 이상 입력해 주세요.");
+    if (!isValidRecoveryCode(recoveryCode)) {
+      showMessage(`복구 코드는 숫자 ${RECOVERY_CODE_LENGTH}자리로 입력해 주세요.`);
       return;
     }
-    if (recoveryAnswer !== recoveryAnswerConfirmation) {
-      showMessage("비밀번호 찾기 답변이 서로 일치하지 않습니다.");
+    if (recoveryCode !== recoveryCodeConfirmation) {
+      showMessage("복구 코드가 서로 일치하지 않습니다.");
       return;
     }
 
@@ -165,9 +155,8 @@ export function UsernameAuth() {
       username: normalizedUsername,
       password,
       passwordConfirmation,
-      recoveryQuestion,
-      recoveryAnswer,
-      recoveryAnswerConfirmation,
+      recoveryCode,
+      recoveryCodeConfirmation,
     });
 
     if (!result.ok) {
@@ -184,36 +173,14 @@ export function UsernameAuth() {
     }
   };
 
-  const handleFindQuestion = async () => {
+  const handleResetPassword = async () => {
     const normalizedUsername = normalizeUsername(username);
     if (!isValidUsername(normalizedUsername)) {
       showMessage("아이디를 확인해 주세요.");
       return;
     }
-
-    setPending(true);
-    setMessage("");
-    const result = await requestJson("/api/auth/recovery/question", {
-      username: normalizedUsername,
-    });
-    setPending(false);
-    const question = result.data.question;
-
-    if (!result.ok || !question || !isKnownRecoveryQuestionId(question)) {
-      showMessage(
-        result.data.message ?? "비밀번호 찾기 질문을 불러오지 못했습니다.",
-      );
-      return;
-    }
-
-    setUsername(normalizedUsername);
-    setRecoveryQuestion(question);
-    setRecoveryStep("answer");
-  };
-
-  const handleResetPassword = async () => {
-    if (!isValidRecoveryAnswer(recoveryAnswer)) {
-      showMessage("비밀번호 찾기 답변을 입력해 주세요.");
+    if (!isValidRecoveryCode(recoveryCode)) {
+      showMessage(`복구 코드는 숫자 ${RECOVERY_CODE_LENGTH}자리로 입력해 주세요.`);
       return;
     }
     if (!isValidPassword(password)) {
@@ -230,8 +197,8 @@ export function UsernameAuth() {
     setPending(true);
     setMessage("");
     const result = await requestJson("/api/auth/recovery/reset", {
-      username,
-      recoveryAnswer,
+      username: normalizedUsername,
+      recoveryCode,
       password,
       passwordConfirmation,
     });
@@ -243,9 +210,8 @@ export function UsernameAuth() {
     }
 
     setView("login");
-    setRecoveryStep("username");
-    setRecoveryAnswer("");
-    setRecoveryAnswerConfirmation("");
+    setRecoveryCode("");
+    setRecoveryCodeConfirmation("");
     setPassword("");
     setPasswordConfirmation("");
     showMessage(
@@ -291,8 +257,6 @@ export function UsernameAuth() {
       </div>
     );
   }
-
-  const activeQuestionLabel = getRecoveryQuestionLabel(recoveryQuestion);
 
   return (
     <div className="rounded-2xl border border-border bg-surface p-5 shadow-sm sm:p-8">
@@ -450,66 +414,55 @@ export function UsernameAuth() {
             className={fieldClassName}
           />
           <label
-            htmlFor="signup-recovery-question"
+            htmlFor="signup-recovery-code"
             className="mt-5 block text-sm font-semibold text-foreground"
           >
-            비밀번호 찾기 질문
-          </label>
-          <select
-            id="signup-recovery-question"
-            name="recoveryQuestion"
-            required
-            value={recoveryQuestion}
-            onChange={(event) =>
-              setRecoveryQuestion(event.target.value as RecoveryQuestionId)
-            }
-            className={fieldClassName}
-          >
-            {RECOVERY_QUESTIONS.map(({ id, label }) => (
-              <option key={id} value={id}>
-                {label}
-              </option>
-            ))}
-          </select>
-          <label
-            htmlFor="signup-recovery-answer"
-            className="mt-5 block text-sm font-semibold text-foreground"
-          >
-            답변
+            복구 코드
           </label>
           <input
-            id="signup-recovery-answer"
-            name="recoveryAnswer"
+            id="signup-recovery-code"
+            name="recoveryCode"
             type="text"
             autoComplete="off"
+            inputMode="numeric"
+            pattern={`[0-9]{${RECOVERY_CODE_LENGTH}}`}
+            minLength={RECOVERY_CODE_LENGTH}
+            maxLength={RECOVERY_CODE_LENGTH}
             required
-            value={recoveryAnswer}
-            onChange={(event) => setRecoveryAnswer(event.target.value)}
-            placeholder="본인만 기억할 수 있는 답변"
+            value={recoveryCode}
+            onChange={(event) =>
+              setRecoveryCode(event.target.value.replace(/\D/g, ""))
+            }
+            placeholder={`숫자 ${RECOVERY_CODE_LENGTH}자리`}
             className={fieldClassName}
           />
           <label
-            htmlFor="signup-recovery-answer-confirmation"
+            htmlFor="signup-recovery-code-confirmation"
             className="mt-5 block text-sm font-semibold text-foreground"
           >
-            답변 확인
+            복구 코드 확인
           </label>
           <input
-            id="signup-recovery-answer-confirmation"
-            name="recoveryAnswerConfirmation"
+            id="signup-recovery-code-confirmation"
+            name="recoveryCodeConfirmation"
             type="text"
             autoComplete="off"
+            inputMode="numeric"
+            pattern={`[0-9]{${RECOVERY_CODE_LENGTH}}`}
+            minLength={RECOVERY_CODE_LENGTH}
+            maxLength={RECOVERY_CODE_LENGTH}
             required
-            value={recoveryAnswerConfirmation}
+            value={recoveryCodeConfirmation}
             onChange={(event) =>
-              setRecoveryAnswerConfirmation(event.target.value)
+              setRecoveryCodeConfirmation(event.target.value.replace(/\D/g, ""))
             }
-            placeholder="답변 다시 입력"
+            placeholder="복구 코드 다시 입력"
             className={fieldClassName}
           />
-          <p className="mt-2 text-xs leading-relaxed text-muted">
-            선택한 질문과 답변은 추후 변경이 어려우니 반드시 기억하거나 안전한
-            곳에 메모해 두세요.
+          <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2.5 text-xs leading-5 text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+            복구 코드는 비밀번호를 잊었을 때 본인 확인에 사용됩니다. 복구
+            코드를 분실하면 비밀번호를 재설정할 수 없으니, 반드시 기억하거나
+            안전한 곳에 메모해 두세요.
           </p>
           <button
             type="submit"
@@ -525,121 +478,108 @@ export function UsernameAuth() {
         <form
           onSubmit={(event) => {
             event.preventDefault();
-            if (recoveryStep === "username") {
-              void handleFindQuestion();
-            } else {
-              void handleResetPassword();
-            }
+            void handleResetPassword();
           }}
         >
           <div className="mb-6">
-            <h2 className="font-semibold text-foreground">비밀번호 찾기</h2>
+            <h2 className="font-semibold text-foreground">
+              비밀번호 재설정
+            </h2>
             <p className="mt-1 text-sm text-muted">
-              가입할 때 등록한 질문으로 본인을 확인합니다.
+              아이디와 가입할 때 등록한 숫자 6자리 복구 코드를 입력해 주세요.
             </p>
           </div>
 
-          {recoveryStep === "username" ? (
-            <>
-              <label
-                htmlFor="recovery-username"
-                className="block text-sm font-semibold text-foreground"
-              >
-                아이디
-              </label>
-              <input
-                id="recovery-username"
-                name="username"
-                type="text"
-                autoComplete="username"
-                minLength={USERNAME_MIN_LENGTH}
-                maxLength={USERNAME_MAX_LENGTH}
-                pattern="[A-Za-z0-9._-]+"
-                required
-                value={username}
-                onChange={(event) => setUsername(event.target.value)}
-                placeholder="아이디 입력"
-                className={fieldClassName}
-              />
-              <button
-                type="submit"
-                disabled={pending}
-                className={primaryButtonClassName}
-              >
-                {pending ? "확인하는 중…" : "질문 확인"}
-              </button>
-            </>
-          ) : (
-            <>
-              <p className="rounded-xl bg-stone-100 px-4 py-3 text-sm font-medium leading-relaxed text-foreground dark:bg-stone-800">
-                {activeQuestionLabel}
-              </p>
-              <label
-                htmlFor="recovery-answer"
-                className="mt-5 block text-sm font-semibold text-foreground"
-              >
-                답변
-              </label>
-              <input
-                id="recovery-answer"
-                name="recoveryAnswer"
-                type="text"
-                autoComplete="off"
-                required
-                value={recoveryAnswer}
-                onChange={(event) => setRecoveryAnswer(event.target.value)}
-                placeholder="가입할 때 입력한 답변"
-                className={fieldClassName}
-              />
-              <label
-                htmlFor="recovery-password"
-                className="mt-5 block text-sm font-semibold text-foreground"
-              >
-                새 비밀번호
-              </label>
-              <input
-                id="recovery-password"
-                name="password"
-                type="password"
-                autoComplete="new-password"
-                minLength={PASSWORD_MIN_LENGTH}
-                maxLength={PASSWORD_MAX_LENGTH}
-                required
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                placeholder={`${PASSWORD_MIN_LENGTH}~${PASSWORD_MAX_LENGTH}자`}
-                className={fieldClassName}
-              />
-              <label
-                htmlFor="recovery-password-confirmation"
-                className="mt-5 block text-sm font-semibold text-foreground"
-              >
-                새 비밀번호 확인
-              </label>
-              <input
-                id="recovery-password-confirmation"
-                name="passwordConfirmation"
-                type="password"
-                autoComplete="new-password"
-                minLength={PASSWORD_MIN_LENGTH}
-                maxLength={PASSWORD_MAX_LENGTH}
-                required
-                value={passwordConfirmation}
-                onChange={(event) =>
-                  setPasswordConfirmation(event.target.value)
-                }
-                placeholder="새 비밀번호 다시 입력"
-                className={fieldClassName}
-              />
-              <button
-                type="submit"
-                disabled={pending}
-                className={primaryButtonClassName}
-              >
-                {pending ? "변경하는 중…" : "비밀번호 변경"}
-              </button>
-            </>
-          )}
+          <label
+            htmlFor="recovery-username"
+            className="block text-sm font-semibold text-foreground"
+          >
+            아이디
+          </label>
+          <input
+            id="recovery-username"
+            name="username"
+            type="text"
+            autoComplete="username"
+            minLength={USERNAME_MIN_LENGTH}
+            maxLength={USERNAME_MAX_LENGTH}
+            pattern="[A-Za-z0-9._-]+"
+            required
+            value={username}
+            onChange={(event) => setUsername(event.target.value)}
+            placeholder="아이디 입력"
+            className={fieldClassName}
+          />
+          <label
+            htmlFor="recovery-code"
+            className="mt-5 block text-sm font-semibold text-foreground"
+          >
+            복구 코드
+          </label>
+          <input
+            id="recovery-code"
+            name="recoveryCode"
+            type="text"
+            autoComplete="off"
+            inputMode="numeric"
+            pattern={`[0-9]{${RECOVERY_CODE_LENGTH}}`}
+            minLength={RECOVERY_CODE_LENGTH}
+            maxLength={RECOVERY_CODE_LENGTH}
+            required
+            value={recoveryCode}
+            onChange={(event) =>
+              setRecoveryCode(event.target.value.replace(/\D/g, ""))
+            }
+            placeholder={`숫자 ${RECOVERY_CODE_LENGTH}자리`}
+            className={fieldClassName}
+          />
+          <label
+            htmlFor="recovery-password"
+            className="mt-5 block text-sm font-semibold text-foreground"
+          >
+            새 비밀번호
+          </label>
+          <input
+            id="recovery-password"
+            name="password"
+            type="password"
+            autoComplete="new-password"
+            minLength={PASSWORD_MIN_LENGTH}
+            maxLength={PASSWORD_MAX_LENGTH}
+            required
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            placeholder={`${PASSWORD_MIN_LENGTH}~${PASSWORD_MAX_LENGTH}자`}
+            className={fieldClassName}
+          />
+          <label
+            htmlFor="recovery-password-confirmation"
+            className="mt-5 block text-sm font-semibold text-foreground"
+          >
+            새 비밀번호 확인
+          </label>
+          <input
+            id="recovery-password-confirmation"
+            name="passwordConfirmation"
+            type="password"
+            autoComplete="new-password"
+            minLength={PASSWORD_MIN_LENGTH}
+            maxLength={PASSWORD_MAX_LENGTH}
+            required
+            value={passwordConfirmation}
+            onChange={(event) =>
+              setPasswordConfirmation(event.target.value)
+            }
+            placeholder="새 비밀번호 다시 입력"
+            className={fieldClassName}
+          />
+          <button
+            type="submit"
+            disabled={pending}
+            className={primaryButtonClassName}
+          >
+            {pending ? "변경하는 중…" : "비밀번호 변경"}
+          </button>
         </form>
       )}
 

@@ -13,6 +13,8 @@ import {
   normalizePronunciationText,
   type PronunciationEvaluation,
 } from "@/lib/pronunciation-match";
+import { DailyGoalProgressBar } from "@/components/DailyGoalProgressBar";
+import { useDailyGoal } from "@/components/DailyGoalProvider";
 import { MicrophoneIcon } from "@/components/PronunciationIcons";
 
 interface SpeechRecognitionAlternativeLike {
@@ -81,6 +83,7 @@ interface VersePronunciationPracticeProps {
 
 type RecognitionStatus = "idle" | "listening";
 type SupportStatus = "checking" | "supported" | "unsupported";
+type RecognitionStallPrompt = "retry" | "finish" | null;
 
 const ERROR_MESSAGES: Record<string, string> = {
   "audio-capture": "마이크를 찾을 수 없습니다. 기기 설정을 확인해 주세요.",
@@ -91,6 +94,8 @@ const ERROR_MESSAGES: Record<string, string> = {
   "no-speech": "목소리가 들리지 않았습니다. 마이크 가까이에서 다시 읽어 주세요.",
 };
 const SKIP_WORD_CACHE_DURATION_MS = 30_000;
+const RECOGNITION_STALL_TIMEOUT_MS = 5_000;
+const RECOGNITION_RESTART_DELAY_MS = 200;
 
 let cachedSkipWords:
   | {
@@ -144,6 +149,17 @@ function getSpeechRecognitionConstructor(): SpeechRecognitionConstructorLike | n
   );
 }
 
+function isAndroidSpeechRecognitionClient(): boolean {
+  return (
+    typeof navigator !== "undefined" &&
+    /Android/i.test(navigator.userAgent)
+  );
+}
+
+function joinRecognitionTranscripts(...transcripts: string[]): string {
+  return transcripts.filter(Boolean).join(" ").trim();
+}
+
 function subscribeToSpeechRecognitionSupport() {
   return () => {};
 }
@@ -195,8 +211,18 @@ export function VersePronunciationPractice({
   autoStart,
   onAutoStartHandled,
 }: VersePronunciationPracticeProps) {
+  const {
+    target: dailyGoalTarget,
+    todayCount: dailyGoalTodayCount,
+    achievedToday: dailyGoalAchievedToday,
+    loading: dailyGoalLoading,
+  } = useDailyGoal();
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const consecutiveFailureCountRef = useRef(0);
+  const recognitionStallTimeoutRef = useRef<number | null>(null);
+  const recognitionRestartTimeoutRef = useRef<number | null>(null);
+  const recognitionStallCountRef = useRef(0);
+  const manualStopRequestedRef = useRef(false);
   const supportStatus = useSyncExternalStore(
     subscribeToSpeechRecognitionSupport,
     getSpeechRecognitionSupportSnapshot,
@@ -206,8 +232,23 @@ export function VersePronunciationPractice({
   const [evaluation, setEvaluation] =
     useState<PronunciationEvaluation | null>(null);
   const [consecutiveFailureCount, setConsecutiveFailureCount] = useState(0);
+  const [recognitionStallPrompt, setRecognitionStallPrompt] =
+    useState<RecognitionStallPrompt>(null);
+  const [allowAdvanceAfterStall, setAllowAdvanceAfterStall] = useState(false);
   const [ignoredWords, setIgnoredWords] = useState<string[] | null>(null);
   const [error, setError] = useState("");
+
+  const clearRecognitionStallTimer = useCallback(() => {
+    if (recognitionStallTimeoutRef.current === null) return;
+    window.clearTimeout(recognitionStallTimeoutRef.current);
+    recognitionStallTimeoutRef.current = null;
+  }, []);
+
+  const clearRecognitionRestartTimer = useCallback(() => {
+    if (recognitionRestartTimeoutRef.current === null) return;
+    window.clearTimeout(recognitionRestartTimeoutRef.current);
+    recognitionRestartTimeoutRef.current = null;
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -223,6 +264,8 @@ export function VersePronunciationPractice({
 
   useEffect(() => {
     return () => {
+      clearRecognitionStallTimer();
+      clearRecognitionRestartTimer();
       const recognition = recognitionRef.current;
       if (recognition) {
         recognition.onstart = null;
@@ -234,37 +277,83 @@ export function VersePronunciationPractice({
       recognitionRef.current = null;
       onCharacterProgressChange(null);
     };
-  }, [onCharacterProgressChange]);
+  }, [
+    clearRecognitionRestartTimer,
+    clearRecognitionStallTimer,
+    onCharacterProgressChange,
+  ]);
 
   const startRecognition = useCallback(() => {
     const SpeechRecognition = getSpeechRecognitionConstructor();
     if (!SpeechRecognition || ignoredWords === null) return;
 
+    clearRecognitionStallTimer();
+    clearRecognitionRestartTimer();
     recognitionRef.current?.abort();
+    manualStopRequestedRef.current = false;
 
     const recognition = new SpeechRecognition();
+    const isAndroidClient = isAndroidSpeechRecognitionClient();
+    let completedSessionTranscript = "";
     let finalTranscript = "";
     let latestInterimTranscript = "";
     let recognitionError = false;
     let furthestCharacterCount = 0;
     let autoStopRequested = false;
+    let stallResolution: Exclude<RecognitionStallPrompt, null> | null = null;
     const expectedCharacterCount = normalizePronunciationText(text).length;
 
+    const requestStallRecovery = () => {
+      if (autoStopRequested || recognitionRef.current !== recognition) {
+        return;
+      }
+
+      clearRecognitionStallTimer();
+      autoStopRequested = true;
+      const nextStallCount = recognitionStallCountRef.current + 1;
+      recognitionStallCountRef.current = nextStallCount;
+      stallResolution = nextStallCount >= 2 ? "finish" : "retry";
+
+      if (recognitionRestartTimeoutRef.current !== null) {
+        clearRecognitionRestartTimer();
+        recognition.onend?.();
+        return;
+      }
+
+      try {
+        recognition.stop();
+      } catch {
+        recognition.onend?.();
+      }
+    };
+
+    const scheduleStallRecovery = () => {
+      clearRecognitionStallTimer();
+      recognitionStallTimeoutRef.current = window.setTimeout(
+        requestStallRecovery,
+        RECOGNITION_STALL_TIMEOUT_MS,
+      );
+    };
+
     recognition.lang = "ko-KR";
-    recognition.continuous = true;
+    recognition.continuous = !isAndroidClient;
     recognition.interimResults = true;
     recognition.maxAlternatives = 1;
 
     recognition.onstart = () => {
       setStatus("listening");
-      onCharacterProgressChange(0);
+      onCharacterProgressChange(furthestCharacterCount);
+      if (recognitionStallTimeoutRef.current === null) {
+        scheduleStallRecovery();
+      }
     };
 
     recognition.onresult = (event) => {
+      let nextFinalTranscript = "";
       let nextInterimTranscript = "";
 
       for (
-        let resultIndex = event.resultIndex;
+        let resultIndex = 0;
         resultIndex < event.results.length;
         resultIndex++
       ) {
@@ -272,16 +361,26 @@ export function VersePronunciationPractice({
         const recognizedText = result[0]?.transcript ?? "";
 
         if (result.isFinal) {
-          finalTranscript = `${finalTranscript} ${recognizedText}`.trim();
+          nextFinalTranscript = joinRecognitionTranscripts(
+            nextFinalTranscript,
+            recognizedText,
+          );
         } else {
-          nextInterimTranscript =
-            `${nextInterimTranscript} ${recognizedText}`.trim();
+          nextInterimTranscript = joinRecognitionTranscripts(
+            nextInterimTranscript,
+            recognizedText,
+          );
         }
       }
 
+      finalTranscript = nextFinalTranscript;
       latestInterimTranscript = nextInterimTranscript;
-      const recognizedText =
-        `${finalTranscript} ${nextInterimTranscript}`.trim();
+      const recognizedText = joinRecognitionTranscripts(
+        completedSessionTranscript,
+        finalTranscript,
+        nextInterimTranscript,
+      );
+      const previousCharacterCount = furthestCharacterCount;
       furthestCharacterCount = Math.max(
         furthestCharacterCount,
         getPronunciationCharacterCount(
@@ -297,12 +396,33 @@ export function VersePronunciationPractice({
         expectedCharacterCount > 0 &&
         furthestCharacterCount >= expectedCharacterCount
       ) {
+        clearRecognitionStallTimer();
         autoStopRequested = true;
         recognition.stop();
+      } else if (
+        recognizedText &&
+        expectedCharacterCount > 0 &&
+        (furthestCharacterCount > previousCharacterCount ||
+          recognitionStallTimeoutRef.current === null)
+      ) {
+        scheduleStallRecovery();
       }
     };
 
     recognition.onerror = (event) => {
+      if (recognitionRef.current !== recognition) return;
+
+      const recoverableAndroidSegmentEnd =
+        isAndroidClient &&
+        !autoStopRequested &&
+        !manualStopRequestedRef.current &&
+        (event.error === "no-speech" || event.error === "aborted");
+
+      if (recoverableAndroidSegmentEnd) {
+        return;
+      }
+
+      clearRecognitionStallTimer();
       recognitionError = true;
       setError(
         ERROR_MESSAGES[event.error] ??
@@ -312,15 +432,63 @@ export function VersePronunciationPractice({
     };
 
     recognition.onend = () => {
+      if (recognitionRef.current !== recognition) return;
+
+      if (recognitionError) {
+        clearRecognitionStallTimer();
+        recognitionRef.current = null;
+        return;
+      }
+
+      if (!autoStopRequested && !manualStopRequestedRef.current) {
+        completedSessionTranscript = joinRecognitionTranscripts(
+          completedSessionTranscript,
+          finalTranscript,
+          latestInterimTranscript,
+        );
+        finalTranscript = "";
+        latestInterimTranscript = "";
+
+        recognitionRestartTimeoutRef.current = window.setTimeout(() => {
+          recognitionRestartTimeoutRef.current = null;
+          if (
+            recognitionRef.current !== recognition ||
+            manualStopRequestedRef.current
+          ) {
+            return;
+          }
+
+          try {
+            recognition.start();
+          } catch {
+            recognitionRef.current = null;
+            setStatus("idle");
+            onCharacterProgressChange(null);
+            setError(
+              "음성 인식을 계속하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+            );
+          }
+        }, RECOGNITION_RESTART_DELAY_MS);
+        return;
+      }
+
+      clearRecognitionStallTimer();
       recognitionRef.current = null;
       setStatus("idle");
 
-      if (recognitionError) return;
+      const recognizedText = joinRecognitionTranscripts(
+        completedSessionTranscript,
+        finalTranscript,
+        latestInterimTranscript,
+      );
 
-      const recognizedText =
-        `${finalTranscript} ${latestInterimTranscript}`.trim();
+      if (stallResolution === "retry") {
+        onCharacterProgressChange(null);
+        setRecognitionStallPrompt("retry");
+        return;
+      }
 
-      if (!recognizedText) {
+      if (!recognizedText && stallResolution !== "finish") {
         setError(
           "인식된 말이 없습니다. 마이크 가까이에서 다시 읽어 주세요.",
         );
@@ -333,6 +501,13 @@ export function VersePronunciationPractice({
         ignoredWords,
       );
       setEvaluation(nextEvaluation);
+
+      if (stallResolution === "finish") {
+        setAllowAdvanceAfterStall(true);
+        onCompletionChange(true);
+        setRecognitionStallPrompt("finish");
+        return;
+      }
 
       if (nextEvaluation.tone === "retry") {
         const nextFailureCount = consecutiveFailureCountRef.current + 1;
@@ -348,6 +523,7 @@ export function VersePronunciationPractice({
 
     setEvaluation(null);
     setError("");
+    setRecognitionStallPrompt(null);
     recognitionRef.current = recognition;
 
     try {
@@ -361,6 +537,8 @@ export function VersePronunciationPractice({
   }, [
     onCharacterProgressChange,
     onCompletionChange,
+    clearRecognitionRestartTimer,
+    clearRecognitionStallTimer,
     ignoredWords,
     text,
   ]);
@@ -377,10 +555,31 @@ export function VersePronunciationPractice({
   }, [autoStart, ignoredWords, onAutoStartHandled, startRecognition]);
 
   const stopRecognition = () => {
-    recognitionRef.current?.stop();
+    const recognition = recognitionRef.current;
+    if (!recognition) return;
+
+    const wasWaitingToRestart =
+      recognitionRestartTimeoutRef.current !== null;
+    clearRecognitionStallTimer();
+    clearRecognitionRestartTimer();
+    manualStopRequestedRef.current = true;
+
+    if (wasWaitingToRestart) {
+      recognition.onend?.();
+      return;
+    }
+
+    try {
+      recognition.stop();
+    } catch {
+      recognition.onend?.();
+    }
   };
 
   const closePractice = () => {
+    clearRecognitionStallTimer();
+    clearRecognitionRestartTimer();
+    manualStopRequestedRef.current = true;
     const recognition = recognitionRef.current;
     if (recognition) {
       recognition.onstart = null;
@@ -393,6 +592,15 @@ export function VersePronunciationPractice({
     setStatus("idle");
     onCharacterProgressChange(null);
     onClose();
+  };
+
+  const confirmRecognitionStallPrompt = () => {
+    const prompt = recognitionStallPrompt;
+    setRecognitionStallPrompt(null);
+
+    if (prompt === "retry") {
+      startRecognition();
+    }
   };
 
   const panelToneClasses =
@@ -408,44 +616,73 @@ export function VersePronunciationPractice({
     : null;
   const canAdvance =
     evaluation !== null &&
-    (evaluation.tone !== "retry" || consecutiveFailureCount >= 2);
+    (evaluation.tone !== "retry" ||
+      consecutiveFailureCount >= 2 ||
+      allowAdvanceAfterStall);
+  const dailyGoalCompleted =
+    dailyGoalAchievedToday ||
+    Boolean(
+      dailyGoalTarget && dailyGoalTodayCount >= dailyGoalTarget,
+    );
+  const dailyGoalPercentage = dailyGoalTarget
+    ? Math.min(
+        100,
+        Math.round((dailyGoalTodayCount / dailyGoalTarget) * 100),
+      )
+    : 0;
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[70] p-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] sm:p-5">
-      <section
-        id={`pronunciation-panel-${verseNum}`}
-        aria-labelledby={`pronunciation-title-${verseNum}`}
-        className={`pointer-events-auto mx-auto max-w-2xl rounded-2xl border p-4 shadow-[0_-12px_40px_rgba(28,25,23,0.14)] backdrop-blur transition-colors sm:p-5 ${panelToneClasses}`}
-      >
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h2
-              id={`pronunciation-title-${verseNum}`}
-              className="text-sm font-semibold"
-            >
-              소리 내어 읽기
-            </h2>
-            <p
-              className={`mt-1 text-xs leading-5 ${
-                evaluation
-                  ? "text-current opacity-70"
-                  : "text-stone-500 dark:text-stone-400"
-              }`}
-            >
-              {bookName} {chapter}장 {verseNum}절 말씀
-            </p>
-          </div>
+    <>
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[70] p-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] sm:p-5">
+        <section
+          id={`pronunciation-panel-${verseNum}`}
+          aria-labelledby={`pronunciation-title-${verseNum}`}
+          className={`pointer-events-auto mx-auto max-w-2xl rounded-2xl border p-4 shadow-[0_-12px_40px_rgba(28,25,23,0.14)] backdrop-blur transition-colors sm:p-5 ${panelToneClasses}`}
+        >
+        <div className="flex items-center justify-between gap-4">
+          <h2
+            id={`pronunciation-title-${verseNum}`}
+            className="text-sm font-semibold"
+          >
+            소리 내어 읽기
+          </h2>
           <button
             type="button"
             onClick={closePractice}
             aria-label="소리 내어 읽기 닫기"
-            className="-mr-1 -mt-1 inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full text-current opacity-60 transition-[background-color,opacity] hover:bg-black/5 hover:opacity-100 dark:hover:bg-white/10"
+            className="-mr-1 inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full text-current opacity-60 transition-[background-color,opacity] hover:bg-black/5 hover:opacity-100 dark:hover:bg-white/10"
           >
             <span aria-hidden className="text-xl leading-none">
               ×
             </span>
           </button>
         </div>
+
+        {!dailyGoalLoading && dailyGoalTarget && (
+          <div className="flex items-center gap-3">
+            <p className="shrink-0 text-xs font-medium text-stone-600 dark:text-stone-300">
+              일일 목표
+            </p>
+            <div className="min-w-0 flex-1">
+              <DailyGoalProgressBar
+                value={dailyGoalTodayCount}
+                max={dailyGoalTarget}
+                completed={dailyGoalCompleted}
+                label="녹음 중 일일 읽기 목표 진행률"
+                trackClassName="bg-stone-200 dark:bg-stone-700"
+              />
+            </div>
+            <p
+              className={`shrink-0 text-xs font-semibold ${
+                dailyGoalCompleted
+                  ? "text-emerald-700 dark:text-emerald-300"
+                  : "text-amber-800 dark:text-amber-300"
+              }`}
+            >
+              {dailyGoalPercentage}%
+            </p>
+          </div>
+        )}
 
         <div className="mt-4">
           {supportStatus === "supported" && !evaluation && (
@@ -566,7 +803,49 @@ export function VersePronunciationPractice({
             {error}
           </p>
         )}
-      </section>
-    </div>
+        </section>
+      </div>
+
+      {recognitionStallPrompt && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-stone-950/45 p-4 backdrop-blur-[2px]">
+          <section
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="recognition-stall-title"
+            aria-describedby="recognition-stall-description"
+            className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl dark:bg-stone-900"
+          >
+            <h2
+              id="recognition-stall-title"
+              className="text-lg font-bold text-stone-900 dark:text-stone-100"
+            >
+              {recognitionStallPrompt === "retry"
+                ? "발음을 다시 들려주세요"
+                : "현재 읽기를 채점했어요"}
+            </h2>
+            <p
+              id="recognition-stall-description"
+              className="mt-3 text-sm leading-6 text-stone-600 dark:text-stone-300"
+            >
+              잠깐 멈추고 발음을 좀 더 정확하고 크게 소리내 주세요.
+            </p>
+            {recognitionStallPrompt === "finish" && (
+              <p className="mt-2 text-sm leading-6 text-stone-600 dark:text-stone-300">
+                인식이 두 번 원활하지 않아 현재까지 읽은 내용으로 녹음을
+                종료하고 채점했어요. 확인 후 다음 절로 넘어갈 수 있어요.
+              </p>
+            )}
+            <button
+              type="button"
+              autoFocus
+              onClick={confirmRecognitionStallPrompt}
+              className="mt-5 inline-flex min-h-11 w-full cursor-pointer items-center justify-center rounded-xl bg-amber-800 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-amber-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-800 dark:bg-amber-700 dark:hover:bg-amber-600"
+            >
+              확인
+            </button>
+          </section>
+        </div>
+      )}
+    </>
   );
 }

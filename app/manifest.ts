@@ -1,22 +1,10 @@
 import type { MetadataRoute } from "next";
-import { cookies } from "next/headers";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_SHORT_NAME } from "@/lib/seo";
-import {
-  BACKGROUND_COLOR,
-  PWA_THEME_COLOR,
-  THEME_COOKIE_NAME,
-  isThemeMode,
-  type ThemeMode,
-} from "@/lib/theme";
+import { BACKGROUND_COLOR, PWA_THEME_COLOR } from "@/lib/theme";
 
-export const dynamic = "force-dynamic";
-
-export default async function manifest(): Promise<MetadataRoute.Manifest> {
-  const cookieStore = await cookies();
-  const stored = cookieStore.get(THEME_COOKIE_NAME)?.value ?? null;
-  const theme: ThemeMode = isThemeMode(stored) ? stored : "light";
-
+export default function manifest(): MetadataRoute.Manifest {
   return {
+    id: "/",
     name: SITE_NAME,
     short_name: SITE_SHORT_NAME,
     description: SITE_DESCRIPTION,
@@ -24,8 +12,8 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
     scope: "/",
     display: "standalone",
     orientation: "portrait",
-    background_color: BACKGROUND_COLOR[theme],
-    theme_color: PWA_THEME_COLOR[theme],
+    background_color: BACKGROUND_COLOR.light,
+    theme_color: PWA_THEME_COLOR.light,
     lang: "ko",
     icons: [
       {

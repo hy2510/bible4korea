@@ -1,7 +1,9 @@
 import {
+  isValidUsername,
   isValidPassword,
   PASSWORD_MAX_LENGTH,
   PASSWORD_MIN_LENGTH,
+  toSupabaseLoginIdentifier,
   toSupabasePassword,
 } from "@/lib/auth/credentials";
 import {
@@ -47,8 +49,11 @@ export async function POST(request: Request) {
     );
   }
 
-  const email = authenticated.user.email;
-  if (!email) {
+  const username =
+    typeof authenticated.user.app_metadata?.username === "string"
+      ? authenticated.user.app_metadata.username
+      : authenticated.user.user_metadata?.username;
+  if (typeof username !== "string" || !isValidUsername(username)) {
     return jsonResponse({ message: "계정 정보를 확인할 수 없습니다." }, 400);
   }
 
@@ -61,7 +66,7 @@ export async function POST(request: Request) {
   }
 
   const { error: verificationError } = await anonClient.auth.signInWithPassword({
-    email,
+    email: toSupabaseLoginIdentifier(username),
     password: toSupabasePassword(currentPassword),
   });
   if (verificationError) {

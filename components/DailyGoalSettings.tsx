@@ -1,67 +1,35 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
+import { DailyGoalAchievementCalendar } from "@/components/DailyGoalAchievementCalendar";
 import { useDailyGoal } from "@/components/DailyGoalProvider";
 import { DailyGoalProgressBar } from "@/components/DailyGoalProgressBar";
 import {
   DAILY_GOAL_MAX,
   DAILY_GOAL_MIN,
   DEFAULT_DAILY_GOAL_TARGET,
-  getKoreanCalendarDate,
 } from "@/lib/daily-goal";
-
-const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"] as const;
-
-function toCalendarDate(year: number, month: number, day: number): string {
-  return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-}
-
-function getMonthCells(year: number, month: number) {
-  const firstWeekday = new Date(year, month, 1).getDay();
-  const lastDay = new Date(year, month + 1, 0).getDate();
-
-  return Array.from({ length: 42 }, (_, index) => {
-    const day = index - firstWeekday + 1;
-    return day >= 1 && day <= lastDay ? day : null;
-  });
-}
 
 export function DailyGoalSettings() {
   const {
     target,
     todayCount,
-    achievedToday,
     achievedDates,
+    achievedToday,
     goalStartedDate,
     loading,
     saving,
     error,
     saveTarget,
   } = useDailyGoal();
-  const today = getKoreanCalendarDate();
-  const todayParts = today.split("-").map(Number);
-  const [visibleMonth, setVisibleMonth] = useState(
-    () => new Date(todayParts[0], todayParts[1] - 1, 1),
-  );
   const [targetInput, setTargetInput] = useState<string | null>(null);
   const [savedMessage, setSavedMessage] = useState("");
-  const year = visibleMonth.getFullYear();
-  const month = visibleMonth.getMonth();
-  const cells = useMemo(() => getMonthCells(year, month), [month, year]);
   const progressPercentage = target
     ? Math.min(100, Math.round((todayCount / target) * 100))
     : 0;
   const goalCompletedToday = Boolean(
     target && (achievedToday || todayCount >= target),
   );
-
-  const changeMonth = (offset: number) => {
-    setVisibleMonth((current) => {
-      const next = new Date(current);
-      next.setMonth(next.getMonth() + offset);
-      return next;
-    });
-  };
 
   const handleSave = async () => {
     const nextTarget = Number(
@@ -86,7 +54,7 @@ export function DailyGoalSettings() {
 
   if (loading) {
     return (
-      <section className="rounded-2xl border border-border bg-surface p-5 shadow-sm sm:p-7">
+      <section className="rounded-2xl border border-border bg-surface p-5 sm:p-7">
         <p className="text-center text-sm text-muted">
           일일 읽기 목표를 불러오고 있습니다.
         </p>
@@ -95,12 +63,9 @@ export function DailyGoalSettings() {
   }
 
   return (
-    <section className="rounded-2xl border border-border bg-surface p-5 shadow-sm sm:p-7">
+    <section className="rounded-2xl border border-border bg-surface p-5 sm:p-7">
       <div>
-        <p className="text-xs font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-400">
-          Daily Goal
-        </p>
-        <h2 className="mt-1 font-serif text-xl font-bold text-foreground">
+        <h2 className="font-serif text-xl font-bold text-foreground">
           일일 읽기 목표
         </h2>
         <p className="mt-2 text-sm leading-relaxed text-muted">
@@ -178,101 +143,10 @@ export function DailyGoalSettings() {
         </div>
       </div>
 
-      <div className="mt-7">
-        <div className="flex items-center justify-between">
-          <button
-            type="button"
-            onClick={() => changeMonth(-1)}
-            className="flex size-10 cursor-pointer items-center justify-center rounded-full text-xl text-muted transition-colors hover:bg-surface-muted hover:text-foreground"
-            aria-label="이전 달"
-          >
-            ‹
-          </button>
-          <h3 className="font-semibold text-foreground">
-            {year}년 {month + 1}월
-          </h3>
-          <button
-            type="button"
-            onClick={() => changeMonth(1)}
-            className="flex size-10 cursor-pointer items-center justify-center rounded-full text-xl text-muted transition-colors hover:bg-surface-muted hover:text-foreground"
-            aria-label="다음 달"
-          >
-            ›
-          </button>
-        </div>
-
-        <div className="mt-3 grid grid-cols-7 text-center">
-          {WEEKDAYS.map((weekday, index) => (
-            <span
-              key={weekday}
-              className={`py-2 text-xs font-medium ${
-                index === 0
-                  ? "text-rose-500"
-                  : index === 6
-                    ? "text-blue-500"
-                    : "text-muted"
-              }`}
-            >
-              {weekday}
-            </span>
-          ))}
-          {cells.map((day, index) => {
-            if (day === null) {
-              return <span key={`empty-${index}`} className="aspect-square" />;
-            }
-
-            const date = toCalendarDate(year, month, day);
-            const achieved = achievedDates.has(date);
-            const tracked =
-              Boolean(goalStartedDate) &&
-              date >= (goalStartedDate ?? "") &&
-              date <= today;
-            const isToday = date === today;
-
-            return (
-              <div
-                key={date}
-                className="flex aspect-square items-center justify-center p-0.5"
-                title={
-                  achieved
-                    ? `${date} 목표 달성`
-                    : tracked
-                      ? `${date} 미달성`
-                      : date
-                }
-              >
-                <span
-                  className={`relative flex size-9 items-center justify-center rounded-full text-sm ${
-                    achieved
-                      ? "bg-emerald-500 font-bold text-white shadow-sm"
-                      : tracked
-                        ? "bg-stone-200 text-stone-500 dark:bg-stone-700 dark:text-stone-300"
-                        : "text-muted"
-                  } ${isToday ? "ring-2 ring-amber-500 ring-offset-2 ring-offset-surface" : ""}`}
-                >
-                  {day}
-                  {achieved && (
-                    <span className="absolute -right-0.5 -bottom-0.5 flex size-3.5 items-center justify-center rounded-full bg-white text-[9px] font-black text-emerald-600 shadow">
-                      ✓
-                    </span>
-                  )}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="mt-4 flex justify-center gap-5 text-xs text-muted">
-          <span className="flex items-center gap-1.5">
-            <span className="size-2.5 rounded-full bg-emerald-500" />
-            목표 달성
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="size-2.5 rounded-full bg-stone-300 dark:bg-stone-600" />
-            미달성
-          </span>
-        </div>
-      </div>
+      <DailyGoalAchievementCalendar
+        achievementDates={achievedDates}
+        goalStartedDate={goalStartedDate}
+      />
     </section>
   );
 }

@@ -1,8 +1,21 @@
+import {
+  checkPublicApiRateLimit,
+  rateLimitResponse,
+} from "@/lib/api-rate-limit.server";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: Request) {
+  const rateLimit = await checkPublicApiRateLimit(
+    request,
+    "pronunciation-skips",
+    120,
+  );
+  if (!rateLimit.allowed) {
+    return rateLimitResponse(rateLimit.retryAfter);
+  }
+
   const supabase = getSupabaseAdminClient();
   if (!supabase) {
     return Response.json(

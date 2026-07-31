@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { HomeContent } from "@/components/HomeContent";
+import { getBibleVerseCounts } from "@/lib/bible-search";
 import { createPageMetadata, SITE_DESCRIPTION } from "@/lib/seo";
 
 export const metadata: Metadata = createPageMetadata({
@@ -9,6 +10,8 @@ export const metadata: Metadata = createPageMetadata({
 });
 
 export default function Home() {
+  const bibleVerseCounts = getBibleVerseCounts();
+
   return (
     <Suspense
       fallback={
@@ -17,7 +20,7 @@ export default function Home() {
         </div>
       }
     >
-      <HomeContent />
+      <HomeContent bibleVerseCounts={bibleVerseCounts} />
     </Suspense>
   );
 }

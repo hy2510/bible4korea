@@ -197,7 +197,7 @@ export function ReadingHistoryManager({
               : syncStatus === "error"
                 ? "DB 동기화를 확인해 주세요."
                 : syncStatus === "synced"
-                  ? "DB 동기화 완료"
+                  ? "동기화 완료"
                   : "DB 동기화 준비 중…"}
           </p>
         </div>

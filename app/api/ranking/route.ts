@@ -1,161 +1,185 @@
-import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getAuthenticatedUser } from "@/lib/auth/request.server";
 import {
-  countReadingProgressInRange,
   getCurrentKoreanWeekRange,
   type ActivityRankingItem,
   type ActivityRankingResponse,
 } from "@/lib/activity-ranking";
-import { normalizeAffiliation } from "@/lib/user-affiliation";
+import {
+  checkPublicApiRateLimit,
+  rateLimitResponse,
+} from "@/lib/api-rate-limit.server";
 import { getUserDisplayName } from "@/lib/user-profile";
 
 export const dynamic = "force-dynamic";
 
 const DEFAULT_PAGE_SIZE = 5;
 const MAX_PAGE_SIZE = 50;
-const MAX_RANKED_USERS = 1_000;
-const DEVELOPMENT_SAMPLE_USERS = [
-  { username: "gracewalker", readCount: 15 },
-  { username: "olivebranch", readCount: 13 },
-  { username: "shalom7", readCount: 11 },
-  { username: "morningstar", readCount: 9 },
-  { username: "psalm23", readCount: 8 },
-  { username: "faithhope", readCount: 7 },
-  { username: "livingword", readCount: 6 },
-  { username: "mustardseed", readCount: 5 },
-  { username: "bethany12", readCount: 4 },
-  { username: "selah2026", readCount: 3 },
-] satisfies Array<{
-  username: string;
-  readCount: number;
-  affiliation?: string | null;
-}>;
+const MAX_OFFSET = 100_000;
 
-function parseNonNegativeInteger(value: string | null, fallback: number) {
-  const parsed = Number.parseInt(value ?? "", 10);
-  return Number.isInteger(parsed) && parsed >= 0 ? parsed : fallback;
+function parseBoundedInteger(
+  value: string | null,
+  fallback: number,
+  min: number,
+  max: number,
+): number | null {
+  if (value === null) return fallback;
+  if (!/^(0|[1-9][0-9]*)$/.test(value)) return null;
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) && parsed >= min && parsed <= max
+    ? parsed
+    : null;
 }
 
 export async function GET(request: Request) {
-  const supabase = getSupabaseAdminClient();
-  if (!supabase) {
-    return Response.json(
-      { error: "말씀 활동 서비스를 사용할 수 없습니다." },
-      { status: 503 },
-    );
-  }
-
   const { searchParams } = new URL(request.url);
-  const offset = parseNonNegativeInteger(searchParams.get("offset"), 0);
-  const requestedLimit = parseNonNegativeInteger(
+  const offset = parseBoundedInteger(
+    searchParams.get("offset"),
+    0,
+    0,
+    MAX_OFFSET,
+  );
+  const limit = parseBoundedInteger(
     searchParams.get("limit"),
     DEFAULT_PAGE_SIZE,
+    1,
+    MAX_PAGE_SIZE,
   );
-  const limit = Math.min(Math.max(requestedLimit, 1), MAX_PAGE_SIZE);
-  const affiliationFilter = normalizeAffiliation(
-    searchParams.get("affiliation") ?? "",
-  );
-  const week = getCurrentKoreanWeekRange();
-
-  const [accountResult, profileResult, readingResult] = await Promise.all([
-    supabase
-      .from("user_accounts")
-      .select("user_id, username")
-      .limit(MAX_RANKED_USERS),
-    supabase
-      .from("user_profile_settings")
-      .select("user_id, affiliation, nickname")
-      .limit(MAX_RANKED_USERS),
-    supabase
-      .from("user_reading_progress")
-      .select("user_id, progress")
-      .limit(MAX_RANKED_USERS),
-  ]);
-
-  if (accountResult.error || profileResult.error || readingResult.error) {
+  if (offset === null || limit === null) {
     return Response.json(
-      { error: "말씀 활동을 불러오지 못했습니다." },
-      { status: 500 },
+      { error: "랭킹 조회 조건을 확인해 주세요." },
+      { status: 400, headers: { "Cache-Control": "private, no-store" } },
     );
   }
 
-  const readCounts = new Map(
-    (readingResult.data ?? []).map((record) => [
-      record.user_id,
-      countReadingProgressInRange(record.progress, week),
-    ]),
+  const rateLimit = await checkPublicApiRateLimit(
+    request,
+    "activity-ranking",
+    120,
   );
-  const affiliations = new Map(
-    (profileResult.data ?? []).map((record) => [
-      record.user_id,
-      record.affiliation,
-    ]),
-  );
-  const nicknames = new Map(
-    (profileResult.data ?? []).map((record) => [
-      record.user_id,
-      record.nickname,
-    ]),
-  );
+  if (!rateLimit.allowed) {
+    return rateLimitResponse(rateLimit.retryAfter);
+  }
 
-  const recordedUsers = (accountResult.data ?? [])
-    .map((account) => {
-      const readCount = readCounts.get(account.user_id) ?? 0;
-      const nickname = nicknames.get(account.user_id) ?? null;
-
-      return {
-        username: account.username,
-        nickname,
-        displayName: getUserDisplayName(nickname, account.username),
-        affiliation: affiliations.get(account.user_id) ?? null,
-        readCount,
-      };
-    })
-    .filter((item) => item.readCount > 0)
-    .filter(
-      (item) =>
-        !affiliationFilter || item.affiliation === affiliationFilter,
+  const authenticated = await getAuthenticatedUser(request);
+  if (!authenticated) {
+    return Response.json(
+      { error: "로그인이 필요합니다." },
+      {
+        status: 401,
+        headers: { "Cache-Control": "private, no-store" },
+      },
     );
-  const recordedUsernames = new Set(
-    recordedUsers.map((item) => item.username),
-  );
-  const sampleUsers =
-    process.env.NODE_ENV === "development"
-      ? DEVELOPMENT_SAMPLE_USERS.filter(
-          (item) => !recordedUsernames.has(item.username),
-        ).map((item) => ({
-          username: item.username,
-          readCount: item.readCount,
-          nickname: null,
-          displayName: item.username,
-          affiliation: null,
-        }))
-      : [];
-  const rankedUsers = [...recordedUsers, ...sampleUsers]
-    .sort(
-      (left, right) =>
-        right.readCount - left.readCount ||
-        left.username.localeCompare(right.username, "ko"),
-    );
+  }
 
-  const items: ActivityRankingItem[] = rankedUsers
-    .slice(offset, offset + limit)
-    .map((item, index) => ({
-      rank: offset + index + 1,
-      username: item.username,
-      nickname: item.nickname ?? null,
-      displayName: item.displayName,
-      readCount: item.readCount,
-      affiliation: item.affiliation ?? null,
-    }));
+  const week = getCurrentKoreanWeekRange();
+  const { data: membership, error: membershipError } =
+    await authenticated.supabase
+      .from("organization_memberships")
+      .select("organization_id, status")
+      .eq("user_id", authenticated.user.id)
+      .maybeSingle();
+
+  if (membershipError) {
+    return Response.json(
+      { error: "모임 정보를 불러오지 못했습니다." },
+      {
+        status: 500,
+        headers: { "Cache-Control": "private, no-store" },
+      },
+    );
+  }
+
+  if (!membership) {
+    return Response.json(
+      {
+        items: [],
+        total: 0,
+        weekLabel: week.label,
+        organizationName: null,
+        membershipStatus: null,
+      } satisfies ActivityRankingResponse,
+      {
+        headers: { "Cache-Control": "private, no-store" },
+      },
+    );
+  }
+
+  const organizationPromise = authenticated.supabase
+    .from("organizations")
+    .select("name")
+    .eq("id", membership.organization_id)
+    .maybeSingle();
+
+  if (membership.status === "pending") {
+    const organizationResult = await organizationPromise;
+    if (organizationResult.error || !organizationResult.data) {
+      return Response.json(
+        { error: "모임 정보를 불러오지 못했습니다." },
+        {
+          status: 500,
+          headers: { "Cache-Control": "private, no-store" },
+        },
+      );
+    }
+
+    return Response.json(
+      {
+        items: [],
+        total: 0,
+        weekLabel: week.label,
+        organizationName: organizationResult.data.name,
+        membershipStatus: "pending",
+      } satisfies ActivityRankingResponse,
+      {
+        headers: { "Cache-Control": "private, no-store" },
+      },
+    );
+  }
+
+  const startedAt = performance.now();
+  const [organizationResult, rankingResult] = await Promise.all([
+    organizationPromise,
+    authenticated.supabase.rpc("get_activity_ranking", {
+      p_start_date: week.startDate,
+      p_end_date: week.endDate,
+      p_organization_id: membership.organization_id,
+      p_offset: offset,
+      p_limit: limit,
+    }),
+  ]);
+  const queryDuration = performance.now() - startedAt;
+  const { data, error } = rankingResult;
+
+  if (organizationResult.error || !organizationResult.data || error) {
+    return Response.json(
+      { error: "말씀 활동을 불러오지 못했습니다." },
+      {
+        status: 500,
+        headers: { "Cache-Control": "private, no-store" },
+      },
+    );
+  }
+
+  const rows = data ?? [];
+  const items: ActivityRankingItem[] = rows.map((item) => ({
+    rank: Number(item.ranking_position),
+    displayName: getUserDisplayName(item.nickname, item.username),
+    readCount: Number(item.read_count),
+  }));
+  const total = Number(rows[0]?.total_count ?? 0);
+
   const response: ActivityRankingResponse = {
     items,
-    total: rankedUsers.length,
+    total,
     weekLabel: week.label,
+    organizationName: organizationResult.data.name,
+    membershipStatus: "approved",
   };
 
   return Response.json(response, {
     headers: {
-      "Cache-Control": "public, max-age=30, stale-while-revalidate=60",
+      "Cache-Control": "private, no-store",
+      "Server-Timing": `db;dur=${queryDuration.toFixed(1)}`,
     },
   });
 }

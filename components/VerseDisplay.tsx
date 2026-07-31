@@ -9,10 +9,6 @@ import {
   MicrophoneIcon,
 } from "@/components/PronunciationIcons";
 import type { ChapterVerse } from "@/lib/verse-types";
-import {
-  getGreekStrongsDictionaryUrl,
-  getHebrewStrongsDictionaryUrl,
-} from "@/lib/strongs-links";
 
 const SHOW_SEFARIA_COMMENTARY_BUTTON = false;
 
@@ -93,10 +89,10 @@ function VerseDisplayComponent({
               event.stopPropagation();
               onOpenPronunciationPractice(verseNum);
             }}
-            className={`ms-1.5 inline-flex translate-y-0.5 cursor-pointer items-center justify-center text-amber-800 transition-colors dark:text-amber-400 ${
+            className={`ms-1.5 inline-flex translate-y-0.5 cursor-pointer items-center justify-center transition-colors ${
               pronunciationCompleted
-                ? "gap-0.5 rounded-full border border-emerald-600 px-1.5 py-0.5 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-500 dark:text-emerald-400 dark:hover:bg-emerald-950/30"
-                : "rounded-full p-0.5 hover:bg-amber-100/80 hover:text-amber-950 dark:hover:bg-stone-800/80 dark:hover:text-amber-300"
+                ? "gap-0.5 rounded-full border border-emerald-700 bg-emerald-600 px-1.5 py-0.5 text-white hover:bg-emerald-700 dark:border-emerald-500 dark:bg-emerald-600 dark:text-white dark:hover:bg-emerald-500"
+                : "rounded-full p-0.5 text-amber-800 hover:bg-amber-100/80 hover:text-amber-950 dark:text-amber-400 dark:hover:bg-stone-800/80 dark:hover:text-amber-300"
             }`}
           >
             <MicrophoneIcon className="h-4 w-4" />
@@ -109,7 +105,6 @@ function VerseDisplayComponent({
         <OriginalWordRow
           words={hebrewWords}
           language="hebrew"
-          getDictionaryUrl={getHebrewStrongsDictionaryUrl}
           highlightStrongs={highlightStrongs}
           scrollHighlightToWord={scrollHighlightToWord}
         />
@@ -119,7 +114,6 @@ function VerseDisplayComponent({
         <OriginalWordRow
           words={greekWords}
           language="greek"
-          getDictionaryUrl={getGreekStrongsDictionaryUrl}
           highlightStrongs={highlightStrongs}
           scrollHighlightToWord={scrollHighlightToWord}
         />

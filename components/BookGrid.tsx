@@ -2,7 +2,9 @@
 
 import { useSyncExternalStore } from "react";
 import Link from "next/link";
+import { MedalIcon } from "@/components/AchievementIcons";
 import { useAuth } from "@/components/AuthProvider";
+import { useReadingAchievements } from "@/components/ReadingAchievementProvider";
 import type { BibleBook } from "@/lib/bible-api";
 import {
   getBookPronunciationProgress,
@@ -23,6 +25,7 @@ export function BookGrid({
   title,
 }: BookGridProps) {
   const { user } = useAuth();
+  const { bookCompletionCounts } = useReadingAchievements();
   const pronunciationProgress = useSyncExternalStore(
     subscribeToPronunciationProgress,
     getPronunciationProgressSnapshot,
@@ -36,6 +39,7 @@ export function BookGrid({
       </h2>
       <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
         {books.map((book) => {
+          const completionCount = bookCompletionCounts[book.slug] ?? 0;
           const progress = getBookPronunciationProgress(
             pronunciationProgress,
             book.slug,
@@ -52,8 +56,21 @@ export function BookGrid({
                   ? `${book.name}, 소리 내어 읽기 ${progress.percentage}%`
                   : book.name
               }
-              className="group flex cursor-pointer flex-col items-center rounded-xl border border-stone-200/80 bg-white px-2 py-3 transition-all hover:border-amber-300 hover:shadow-sm dark:border-stone-800 dark:bg-stone-900/60 dark:hover:border-amber-700"
+              className="group relative flex cursor-pointer flex-col items-center rounded-xl border border-stone-200/80 bg-white px-2 py-3 transition-all hover:border-amber-300 hover:shadow-sm dark:border-stone-800 dark:bg-stone-900/60 dark:hover:border-amber-700"
             >
+              {user && completionCount > 0 && (
+                <span
+                  role="img"
+                  aria-label={`${book.name} ${completionCount}회 완독`}
+                  title={`${book.name} ${completionCount}회 완독`}
+                  className="absolute right-1 top-1 flex size-7 items-center justify-center rounded-full border border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950"
+                >
+                  <MedalIcon className="size-[18px]" />
+                  <span className="absolute -bottom-1 -right-1 flex size-4 items-center justify-center rounded-full border border-white bg-amber-800 text-[9px] font-extrabold leading-none text-white dark:border-stone-900">
+                    {completionCount}
+                  </span>
+                </span>
+              )}
               <span className="text-base font-semibold text-stone-800 group-hover:text-amber-900 dark:text-stone-100 dark:group-hover:text-amber-300">
                 {book.abbrev}
               </span>

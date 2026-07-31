@@ -7,6 +7,7 @@ import { SAFE_AREA } from "@/lib/safe-area";
 export function Header() {
   return (
     <header
+      data-site-header
       className={`notranslate sticky top-0 z-10 border-b border-border bg-background ${SAFE_AREA.top}`}
     >
       <div

@@ -1,10 +1,11 @@
 import {
   isValidPassword,
-  isValidRecoveryAnswer,
+  isValidRecoveryCode,
   isValidUsername,
   normalizeUsername,
   PASSWORD_MAX_LENGTH,
   PASSWORD_MIN_LENGTH,
+  RECOVERY_CODE_LENGTH,
   toSupabasePassword,
 } from "@/lib/auth/credentials";
 import {
@@ -14,7 +15,7 @@ import {
   readString,
   recordAuthSecurityEvent,
 } from "@/lib/auth/api.server";
-import { verifyRecoveryAnswer } from "@/lib/auth/recovery.server";
+import { verifyRecoveryCode } from "@/lib/auth/recovery.server";
 import {
   getUserSessionVersion,
   normalizeSessionVersion,
@@ -28,13 +29,16 @@ export async function POST(request: Request) {
   }
 
   const username = normalizeUsername(readString(body, "username"));
-  const recoveryAnswer = readString(body, "recoveryAnswer");
+  const recoveryCode = readString(body, "recoveryCode");
   const password = readString(body, "password");
   const passwordConfirmation = readString(body, "passwordConfirmation");
 
-  if (!isValidUsername(username) || !isValidRecoveryAnswer(recoveryAnswer)) {
+  if (!isValidUsername(username) || !isValidRecoveryCode(recoveryCode)) {
     return jsonResponse(
-      { message: "아이디 또는 비밀번호 찾기 답변을 확인해 주세요." },
+      {
+        message:
+          `아이디와 숫자 ${RECOVERY_CODE_LENGTH}자리 복구 코드를 확인해 주세요.`,
+      },
       400,
     );
   }
@@ -70,20 +74,20 @@ export async function POST(request: Request) {
 
   const { data, error } = await supabase
     .from("user_accounts")
-    .select("user_id, recovery_answer_salt, recovery_answer_hash")
+    .select("user_id, recovery_code_salt, recovery_code_hash")
     .eq("username", username)
     .maybeSingle();
 
-  const answerMatches =
+  const codeMatches =
     !error &&
     data &&
-    (await verifyRecoveryAnswer(
-      recoveryAnswer,
-      data.recovery_answer_salt,
-      data.recovery_answer_hash,
+    (await verifyRecoveryCode(
+      recoveryCode,
+      data.recovery_code_salt,
+      data.recovery_code_hash,
     ));
 
-  if (!answerMatches || !data) {
+  if (!codeMatches || !data) {
     await recordAuthSecurityEvent(
       supabase,
       request,
@@ -92,7 +96,7 @@ export async function POST(request: Request) {
       false,
     );
     return jsonResponse(
-      { message: "비밀번호 찾기 답변이 일치하지 않습니다." },
+      { message: "복구 코드가 일치하지 않습니다." },
       401,
     );
   }
@@ -110,12 +114,12 @@ export async function POST(request: Request) {
     const updateResult = await supabase.auth.admin.updateUserById(
       data.user_id,
       {
-          password: toSupabasePassword(password),
-          app_metadata: {
-            ...authUser.app_metadata,
-            session_version: nextSessionVersion,
-          },
+        password: toSupabasePassword(password),
+        app_metadata: {
+          ...authUser.app_metadata,
+          session_version: nextSessionVersion,
         },
+      },
     );
     updateError = updateResult.error;
   }

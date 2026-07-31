@@ -6,9 +6,14 @@ export function ServiceWorkerRegister() {
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
 
-    navigator.serviceWorker.register("/sw.js").catch(() => {
-      // Service worker registration is best-effort for installability.
-    });
+    navigator.serviceWorker
+      .register("/sw.js", {
+        scope: "/",
+        updateViaCache: "none",
+      })
+      .catch(() => {
+        // Service worker registration is best-effort for installability.
+      });
   }, []);
 
   return null;

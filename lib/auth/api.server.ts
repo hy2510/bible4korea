@@ -4,7 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { hashClientAddress } from "@/lib/auth/recovery.server";
 import type { Database } from "@/lib/supabase/database.types";
 
-type AuthSecurityAction = "signup" | "question" | "reset";
+type AuthSecurityAction = "signup" | "reset";
 
 export function getClientAddress(request: Request): string {
   return (
@@ -22,7 +22,7 @@ export async function isAuthActionRateLimited(
 ): Promise<boolean> {
   const since = new Date(Date.now() - 15 * 60 * 1000).toISOString();
   const ipHash = hashClientAddress(getClientAddress(request));
-  const limit = action === "question" ? 20 : 5;
+  const limit = 5;
 
   let byIp = supabase
     .from("password_recovery_attempts")
@@ -60,12 +60,22 @@ export async function recordAuthSecurityEvent(
   action: AuthSecurityAction,
   succeeded: boolean,
 ): Promise<void> {
-  await supabase.from("password_recovery_attempts").insert({
+  const { error } = await supabase.from("password_recovery_attempts").insert({
     username,
     action,
     ip_hash: hashClientAddress(getClientAddress(request)),
     succeeded,
   });
+
+  if (!error && Math.random() < 0.01) {
+    const retentionStart = new Date(
+      Date.now() - 30 * 24 * 60 * 60 * 1_000,
+    ).toISOString();
+    await supabase
+      .from("password_recovery_attempts")
+      .delete()
+      .lt("created_at", retentionStart);
+  }
 }
 
 export function readJsonObject(value: unknown): Record<string, unknown> | null {

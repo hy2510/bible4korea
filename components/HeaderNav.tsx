@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import { BibleSearchButton } from "@/components/BibleSearch";
-import { useDailyGoal } from "@/components/DailyGoalProvider";
+import { MedalIcon, TrophyIcon } from "@/components/AchievementIcons";
+import { NotificationCountBadge } from "@/components/NotificationCountBadge";
+import { useOrganizationPendingRequests } from "@/components/OrganizationPendingRequestsProvider";
+import { useReadingAchievements } from "@/components/ReadingAchievementProvider";
 import { useUserNickname } from "@/components/useUserNickname";
 
 function navLinkClassName(active: boolean) {
@@ -40,17 +42,23 @@ export function HeaderNav() {
   const router = useRouter();
   const { user, loading, signOut } = useAuth();
   const { displayName } = useUserNickname();
+  const { pendingCount, refreshPendingCount } =
+    useOrganizationPendingRequests();
   const {
-    achievedToday,
-    loading: dailyGoalLoading,
-    replayCelebration,
-  } = useDailyGoal();
+    bookAchievements,
+    bibleAchievements,
+    loading: achievementLoading,
+    openBookAchievementHistory,
+    openBibleAchievementHistory,
+  } = useReadingAchievements();
   const menuRef = useRef<HTMLDivElement>(null);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [signOutPending, setSignOutPending] = useState(false);
   const isBooks = pathname === "/books" || pathname.startsWith("/read/");
   const isLogin = pathname === "/login";
   const isProfile = pathname === "/profile";
+  const isRanking = pathname === "/ranking";
+  const isFriends = pathname === "/friends";
   const initial = (displayName.trim().charAt(0) || "회").toUpperCase();
 
   useEffect(() => {
@@ -79,8 +87,7 @@ export function HeaderNav() {
     setSignOutPending(false);
     if (!errorMessage) {
       setAccountMenuOpen(false);
-      router.replace("/");
-      router.refresh();
+      router.replace("/about");
     }
   };
 
@@ -99,41 +106,56 @@ export function HeaderNav() {
           aria-label="로그인 상태 확인 중"
         />
       ) : user ? (
-        <div className="flex items-center gap-2">
-          {!dailyGoalLoading && achievedToday && (
+        <div className="flex items-center gap-2.5">
+          {!achievementLoading && bookAchievements.length > 0 && (
             <button
               type="button"
-              aria-label="오늘의 일일 읽기 목표 달성 축하 다시 보기"
-              title="목표 달성 축하 다시 보기"
-              onClick={replayCelebration}
-              className="flex size-9 cursor-pointer items-center justify-center rounded-full transition-transform hover:scale-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-700"
+              aria-label="완독 메달 기록 보기"
+              title="완독 메달 기록"
+              onClick={openBookAchievementHistory}
+              className="flex size-7 cursor-pointer items-center justify-center rounded-full transition-transform hover:scale-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-700"
             >
-              <Image
-                src="/images/party-popper.png"
-                alt=""
-                aria-hidden
-                width={28}
-                height={28}
-                className="size-7 object-contain"
-              />
+              <MedalIcon className="size-6" />
+            </button>
+          )}
+
+          {!achievementLoading && bibleAchievements.length > 0 && (
+            <button
+              type="button"
+              aria-label="성경 통독 트로피 기록 보기"
+              title="성경 통독 트로피 기록"
+              onClick={openBibleAchievementHistory}
+              className="flex size-7 cursor-pointer items-center justify-center rounded-full transition-transform hover:scale-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-700"
+            >
+              <TrophyIcon className="size-6" />
             </button>
           )}
 
           <div ref={menuRef} className="relative">
             <button
               type="button"
-              aria-label={`${displayName} 회원 메뉴`}
+              aria-label={`${displayName} 회원 메뉴${
+                pendingCount > 0 ? `, 가입 대기 ${pendingCount}명` : ""
+              }`}
               aria-haspopup="menu"
               aria-expanded={accountMenuOpen}
-              onClick={() => setAccountMenuOpen((open) => !open)}
+              onClick={() => {
+                if (!accountMenuOpen) void refreshPendingCount();
+                setAccountMenuOpen((open) => !open);
+              }}
               className={`flex size-9 cursor-pointer items-center justify-center rounded-full border text-sm font-bold transition-colors ${
-                accountMenuOpen || isProfile
+                accountMenuOpen || isProfile || isRanking || isFriends
                   ? "border-amber-800 bg-amber-800 text-white"
                   : "border-amber-800/30 bg-amber-50 text-amber-900 hover:border-amber-800 hover:bg-amber-100 dark:border-amber-700/60 dark:bg-amber-950/40 dark:text-amber-300 dark:hover:bg-amber-950/70"
               }`}
             >
               {initial}
             </button>
+            <NotificationCountBadge
+              count={pendingCount}
+              ariaHidden
+              className="pointer-events-none absolute -right-1.5 -top-1.5 z-10 ring-2 ring-background"
+            />
 
             {accountMenuOpen && (
               <div
@@ -159,10 +181,44 @@ export function HeaderNav() {
                 <Link
                   href="/profile"
                   role="menuitem"
+                  aria-current={isProfile ? "page" : undefined}
                   onClick={() => setAccountMenuOpen(false)}
-                  className="block cursor-pointer px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-surface-muted"
+                  className={`block cursor-pointer px-4 py-2.5 text-sm font-medium transition-colors ${
+                    isProfile
+                      ? "bg-amber-50 text-amber-900 dark:bg-amber-950/30 dark:text-amber-300"
+                      : "text-foreground hover:bg-surface-muted"
+                  }`}
                 >
-                  마이 프로필
+                  내 정보
+                </Link>
+                <Link
+                  href="/ranking"
+                  prefetch={false}
+                  role="menuitem"
+                  aria-current={isRanking ? "page" : undefined}
+                  onClick={() => setAccountMenuOpen(false)}
+                  className={`flex cursor-pointer items-center justify-between gap-3 border-t border-border px-4 py-2.5 text-sm font-medium transition-colors ${
+                    isRanking
+                      ? "bg-amber-50 text-amber-900 dark:bg-amber-950/30 dark:text-amber-300"
+                      : "text-foreground hover:bg-surface-muted"
+                  }`}
+                >
+                  <span>내 모임</span>
+                  <NotificationCountBadge count={pendingCount} />
+                </Link>
+                <Link
+                  href="/friends"
+                  prefetch={false}
+                  role="menuitem"
+                  aria-current={isFriends ? "page" : undefined}
+                  onClick={() => setAccountMenuOpen(false)}
+                  className={`block cursor-pointer border-t border-border px-4 py-2.5 text-sm font-medium transition-colors ${
+                    isFriends
+                      ? "bg-amber-50 text-amber-900 dark:bg-amber-950/30 dark:text-amber-300"
+                      : "text-foreground hover:bg-surface-muted"
+                  }`}
+                >
+                  내 친구
                 </Link>
                 <button
                   type="button"

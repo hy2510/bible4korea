@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import {
+  checkPublicApiRateLimit,
+  rateLimitResponse,
+} from "@/lib/api-rate-limit.server";
+import {
   getStrongsByGematria,
   type GematriaFilter,
 } from "@/lib/strongs-ko-db";
@@ -31,6 +35,15 @@ export async function GET(
   const page = Number.parseInt(searchParams.get("page") ?? "1", 10);
   const pageSize = Number.parseInt(searchParams.get("pageSize") ?? "10", 10);
   const filter = parseFilter(searchParams.get("filter"));
+
+  const rateLimit = await checkPublicApiRateLimit(
+    request,
+    "strongs-gematria",
+    120,
+  );
+  if (!rateLimit.allowed) {
+    return rateLimitResponse(rateLimit.retryAfter);
+  }
 
   const result = getStrongsByGematria(value, {
     excludeStrongs: exclude,

@@ -1,7 +1,17 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+import { createPageMetadata } from "@/lib/seo";
 
-export const metadata = {
-  title: "오프라인",
+export const metadata: Metadata = {
+  ...createPageMetadata({
+    title: "오프라인",
+    description: "인터넷 연결이 끊겼을 때 표시되는 오프라인 안내입니다.",
+    path: "/offline",
+  }),
+  robots: {
+    index: false,
+    follow: false,
+  },
 };
 
 export default function OfflinePage() {

@@ -30,7 +30,6 @@ import { SAFE_AREA } from "@/lib/safe-area";
 import {
   isLinkableStrongs,
   isNonNumericHebrewStrongs,
-  toMobileDictionaryUrl,
 } from "@/lib/strongs-links";
 
 interface DictionaryModalProps {
@@ -38,11 +37,8 @@ interface DictionaryModalProps {
   initialIndex: number;
   words: OriginalWord[];
   language: WordLanguage;
-  getDictionaryUrl: (strongs: string) => string;
   onClose: () => void;
 }
-
-type DictionaryTab = "dictionary" | "analysis";
 
 interface StrongsDefinition {
   strongs: string;
@@ -101,8 +97,6 @@ function LetterAnalysisTable({
   surfaceValueSum,
   rootValueSum,
   hasRoot,
-  gematriaQuery,
-  onOpenGematria,
 }: {
   wordText: string;
   rootText: string | null;
@@ -110,8 +104,6 @@ function LetterAnalysisTable({
   surfaceValueSum: number;
   rootValueSum: number;
   hasRoot: boolean;
-  gematriaQuery: number | null;
-  onOpenGematria: (value: number) => void;
 }) {
   if (letters.length === 0) return null;
 
@@ -214,18 +206,9 @@ function LetterAnalysisTable({
                   </td>
                   <td className="px-3 py-3 text-stone-600">
                     {item.entry ? (
-                      <button
-                        type="button"
-                        onClick={() => onOpenGematria(item.entry!.value)}
-                        className={`cursor-pointer rounded px-1.5 py-0.5 font-medium underline-offset-2 transition-colors hover:bg-white/70 hover:underline dark:hover:bg-white/10 ${
-                          gematriaQuery === item.entry.value
-                            ? "ring-1 ring-amber-400"
-                            : ""
-                        }`}
-                        title={`${item.entry.value} 같은 수치 단어 보기`}
-                      >
+                      <span className="font-medium">
                         {item.entry.value}
-                      </button>
+                      </span>
                     ) : (
                       "—"
                     )}
@@ -246,24 +229,16 @@ function LetterAnalysisTable({
         {hasRoot && (
           <span>
             어근 합계{" "}
-            <button
-              type="button"
-              onClick={() => onOpenGematria(rootValueSum)}
-              className="cursor-pointer font-semibold text-amber-800 underline-offset-2 hover:underline dark:text-amber-300"
-            >
+            <strong className="font-semibold text-amber-800 dark:text-amber-300">
               {rootValueSum}
-            </button>
+            </strong>
           </span>
         )}
         <span>
           본문 합계{" "}
-          <button
-            type="button"
-            onClick={() => onOpenGematria(surfaceValueSum)}
-            className="cursor-pointer font-semibold text-sky-800 underline-offset-2 hover:underline dark:text-sky-300"
-          >
+          <strong className="font-semibold text-sky-800 dark:text-sky-300">
             {surfaceValueSum}
-          </button>
+          </strong>
         </span>
       </div>
     </div>
@@ -275,14 +250,10 @@ export function DictionaryModal({
   initialIndex,
   words,
   language,
-  getDictionaryUrl,
   onClose,
 }: DictionaryModalProps) {
   const { openSearch, isSearchOpen } = useBibleSearch();
-  const isSearchOpenRef = useRef(isSearchOpen);
-  isSearchOpenRef.current = isSearchOpen;
   const [activeIndex, setActiveIndex] = useState(initialIndex);
-  const [activeTab, setActiveTab] = useState<DictionaryTab>("dictionary");
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
   const [fetchedDefinition, setFetchedDefinition] = useState<{
@@ -293,7 +264,6 @@ export function DictionaryModal({
   const [analysisFocus, setAnalysisFocus] = useState<AnalysisFocus | null>(
     null,
   );
-  const [gematriaQuery, setGematriaQuery] = useState<number | null>(null);
   const [gematriaPage, setGematriaPage] = useState(1);
   const [gematriaFilter, setGematriaFilter] = useState<GematriaFilter>("all");
   const [gematriaFetch, setGematriaFetch] = useState<{
@@ -307,23 +277,15 @@ export function DictionaryModal({
     matches: GematriaMatch[];
     error: string | null;
   } | null>(null);
-  const gematriaPanelRef = useRef<HTMLDivElement>(null);
   const wordStripRef = useRef<HTMLDivElement>(null);
   const activeWordRef = useRef<HTMLButtonElement | null>(null);
   const isHebrew = language === "hebrew";
 
   const activeWord = words[activeIndex] ?? words[0];
-  const verseStrongs = activeWord?.strongs ?? "";
   const analysisWord = analysisFocus ?? activeWord;
   const activeStrongs = analysisWord?.strongs ?? "";
   const analysisText = analysisWord?.text ?? "";
   const analysisGloss = analysisWord?.gloss ?? null;
-  const dictionaryUrl = verseStrongs
-    ? getDictionaryUrl(verseStrongs)
-    : "";
-  const mobileUrl = dictionaryUrl
-    ? toMobileDictionaryUrl(dictionaryUrl)
-    : "";
 
   const letterAnalysis = useMemo(
     () =>
@@ -358,6 +320,8 @@ export function DictionaryModal({
     [letterAnalysis, rootLetters],
   );
   const hasRoot = rootLetters.length > 0;
+  const gematriaQuery =
+    open && isHebrew && hasRoot && rootValueSum > 0 ? rootValueSum : null;
   const definitionError =
     fetchedDefinition?.strongs === activeStrongs
       ? fetchedDefinition.error
@@ -388,20 +352,8 @@ export function DictionaryModal({
   const selectVerseWord = (index: number) => {
     setActiveIndex(index);
     setAnalysisFocus(null);
-    setGematriaQuery(null);
-    setGematriaPage(1);
-  };
-
-  const openGematriaMatches = (value: number) => {
-    if (gematriaQuery === value) {
-      setGematriaQuery(null);
-      setGematriaPage(1);
-      setGematriaFilter("all");
-      return;
-    }
     setGematriaPage(1);
     setGematriaFilter("all");
-    setGematriaQuery(value);
   };
 
   const searchStrongsVerses = (strongs: string) => {
@@ -435,7 +387,7 @@ export function DictionaryModal({
     if (!open) return;
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !isSearchOpenRef.current) onClose();
+      if (event.key === "Escape" && !isSearchOpen) onClose();
     };
 
     const unlock = lockBodyScroll();
@@ -445,7 +397,7 @@ export function DictionaryModal({
       unlock();
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [open, onClose]);
+  }, [open, onClose, isSearchOpen]);
 
   useEffect(() => {
     if (!open) return;
@@ -579,14 +531,6 @@ export function DictionaryModal({
     return () => controller.abort();
   }, [gematriaQuery, gematriaPage, gematriaFilter, activeStrongs]);
 
-  useLayoutEffect(() => {
-    if (gematriaQuery === null || !gematriaPanelRef.current) return;
-    gematriaPanelRef.current.scrollIntoView({
-      block: "nearest",
-      behavior: "smooth",
-    });
-  }, [gematriaQuery, gematriaResult]);
-
   useEffect(() => {
     if (!open) return;
 
@@ -641,35 +585,14 @@ export function DictionaryModal({
         <div className="border-b border-stone-200/80 px-4 py-4 sm:px-6">
           <div className="flex items-center justify-between gap-3">
             <h2 className="min-w-0 font-serif text-lg font-bold text-stone-900">
-              {(() => {
-                const headerStrongs =
-                  activeTab === "analysis" ? activeStrongs : verseStrongs;
-                if (!isLinkableStrongs(headerStrongs)) {
-                  return headerStrongs;
-                }
-                return (
-                  <button
-                    type="button"
-                    onClick={() => searchStrongsVerses(headerStrongs)}
-                    title={`${headerStrongs} 구절 검색`}
-                    className="cursor-pointer underline-offset-2 transition-colors hover:text-amber-900 hover:underline"
-                  >
-                    {headerStrongs}
-                  </button>
-                );
-              })()}
+              단어 분석
+              {activeStrongs && (
+                <span className="ms-2 font-mono text-sm font-medium text-amber-800">
+                  {activeStrongs}
+                </span>
+              )}
             </h2>
             <div className="flex shrink-0 items-center gap-1">
-              {activeTab === "dictionary" && dictionaryUrl && (
-                <a
-                  href={dictionaryUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="cursor-pointer rounded-lg px-2 py-1 text-sm text-amber-800 transition-colors hover:bg-amber-50 hover:text-amber-900"
-                >
-                  새 창
-                </a>
-              )}
               <button
                 type="button"
                 onClick={onClose}
@@ -760,7 +683,7 @@ export function DictionaryModal({
                     title={
                       word.gloss
                         ? `${word.strongs} · ${word.gloss}`
-                        : `${word.strongs} 사전 검색`
+                        : `${word.strongs} 단어 분석`
                     }
                     aria-pressed={isActive}
                     onClick={() => selectVerseWord(index)}
@@ -788,65 +711,21 @@ export function DictionaryModal({
           </div>
         </div>
 
-        <div
-          role="tablist"
-          aria-label="사전 보기 선택"
-          className="flex border-b border-stone-200/80 px-4 sm:px-6"
-        >
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === "dictionary"}
-            onClick={() => setActiveTab("dictionary")}
-            className={`cursor-pointer border-b-2 px-3 py-2.5 text-sm font-medium transition-colors ${
-              activeTab === "dictionary"
-                ? "border-amber-800 text-amber-900"
-                : "border-transparent text-stone-500 hover:text-stone-800"
-            }`}
-          >
-            네이버 사전
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === "analysis"}
-            onClick={() => setActiveTab("analysis")}
-            className={`cursor-pointer border-b-2 px-3 py-2.5 text-sm font-medium transition-colors ${
-              activeTab === "analysis"
-                ? "border-amber-800 text-amber-900"
-                : "border-transparent text-stone-500 hover:text-stone-800"
-            }`}
-          >
-            단어 분석
-          </button>
-        </div>
-
-        {activeTab === "dictionary" ? (
-          <div className="min-h-0 flex-1 bg-white">
-            <iframe
-              key={mobileUrl}
-              src={mobileUrl}
-              title={`${verseStrongs} 원어 사전`}
-              className="h-full w-full border-0"
-              referrerPolicy="no-referrer-when-downgrade"
-            />
-          </div>
-        ) : (
-          <div className="min-h-0 flex-1 overflow-y-auto bg-background px-4 py-4 sm:px-6">
-            <div className="flex flex-col gap-4">
-              {analysisFocus && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAnalysisFocus(null);
-                    setGematriaQuery(null);
-                    setGematriaPage(1);
-                  }}
-                  className="w-fit cursor-pointer rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-sm font-medium text-amber-900 transition-colors hover:bg-amber-100"
-                >
-                  구절 단어로 돌아가기
-                </button>
-              )}
+        <div className="min-h-0 flex-1 overflow-y-auto bg-background px-4 py-4 sm:px-6">
+          <div className="flex flex-col gap-4">
+            {analysisFocus && (
+              <button
+                type="button"
+                onClick={() => {
+                  setAnalysisFocus(null);
+                  setGematriaPage(1);
+                }}
+                className="inline-flex w-fit cursor-pointer items-center gap-1 text-sm font-medium text-amber-800 transition-colors hover:text-amber-950"
+              >
+                <ChevronLeftIcon className="h-4 w-4" />
+                구절 단어로 돌아가기
+              </button>
+            )}
 
               <div className="flex flex-col gap-3 rounded-xl border border-amber-200/70 bg-amber-50/60 px-4 py-3 text-sm leading-relaxed text-amber-950/80">
                 <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -906,20 +785,9 @@ export function DictionaryModal({
                               {item.letter}
                             </span>
                             {item.entry ? (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  openGematriaMatches(item.entry!.value)
-                                }
-                                className={`mt-1 cursor-pointer font-mono text-xs font-semibold underline-offset-2 hover:underline ${
-                                  gematriaQuery === item.entry.value
-                                    ? "text-amber-900"
-                                    : "text-amber-800/80"
-                                }`}
-                                title={`${item.entry.value} 같은 수치 단어 보기`}
-                              >
+                              <span className="mt-1 font-mono text-xs font-semibold text-amber-800/80">
                                 {item.entry.value}
-                              </button>
+                              </span>
                             ) : (
                               <span className="mt-1 text-xs text-stone-400">
                                 —
@@ -932,18 +800,9 @@ export function DictionaryModal({
                         <span className="text-[10px] font-medium tracking-wide text-amber-800/70">
                           합계
                         </span>
-                        <button
-                          type="button"
-                          onClick={() => openGematriaMatches(rootValueSum)}
-                          className={`mt-1 cursor-pointer font-mono text-xs font-bold underline-offset-2 hover:underline ${
-                            gematriaQuery === rootValueSum
-                              ? "text-amber-950"
-                              : "text-amber-900"
-                          }`}
-                          title={`${rootValueSum} 같은 수치 단어 보기`}
-                        >
+                        <strong className="mt-1 font-mono text-xs font-bold text-amber-950">
                           {rootValueSum}
-                        </button>
+                        </strong>
                       </div>
                     </div>
                   </div>
@@ -985,17 +844,14 @@ export function DictionaryModal({
                   surfaceValueSum={letterValueSum}
                   rootValueSum={rootValueSum}
                   hasRoot={hasRoot}
-                  gematriaQuery={gematriaQuery}
-                  onOpenGematria={openGematriaMatches}
                 />
               )}
 
               {gematriaQuery !== null && (
                 <div
-                  ref={gematriaPanelRef}
                   className={`${featuredPanelClassName} px-4 py-4`}
                 >
-                  <div className="mb-3 flex items-start justify-between gap-3">
+                  <div className="mb-3">
                     <div>
                       <p className="text-xs font-semibold tracking-wide text-amber-800/70">
                         게마트리아 매치
@@ -1013,22 +869,11 @@ export function DictionaryModal({
                         ) : null}
                       </h3>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setGematriaQuery(null);
-                        setGematriaFilter("all");
-                        setGematriaPage(1);
-                      }}
-                      className="cursor-pointer rounded-lg px-2 py-1 text-sm text-stone-500 transition-colors hover:bg-stone-100 hover:text-stone-800"
-                    >
-                      닫기
-                    </button>
                   </div>
 
                   <div
                     className="mb-3 flex flex-wrap gap-1.5"
-                    role="tablist"
+                    role="group"
                     aria-label="게마트리아 매치 필터"
                   >
                     {(
@@ -1055,8 +900,7 @@ export function DictionaryModal({
                         <button
                           key={tab.id}
                           type="button"
-                          role="tab"
-                          aria-selected={active}
+                          aria-pressed={active}
                           onClick={() => {
                             setGematriaFilter(tab.id);
                             setGematriaPage(1);
@@ -1150,7 +994,6 @@ export function DictionaryModal({
                                         text: match.original,
                                         gloss: match.gloss,
                                       });
-                                      setGematriaQuery(null);
                                       setGematriaFilter("all");
                                       setGematriaPage(1);
                                     }}
@@ -1180,7 +1023,6 @@ export function DictionaryModal({
                                           text: match.original,
                                           gloss: match.gloss,
                                         });
-                                        setGematriaQuery(null);
                                         setGematriaFilter("all");
                                         setGematriaPage(1);
                                       }}
@@ -1232,9 +1074,8 @@ export function DictionaryModal({
                     )}
                 </div>
               )}
-            </div>
           </div>
-        )}
+        </div>
       </div>
     </div>,
     document.body,

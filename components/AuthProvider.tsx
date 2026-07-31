@@ -29,7 +29,12 @@ import {
   replacePronunciationProgress,
   serializePronunciationProgressSnapshot,
   subscribeToPronunciationProgress,
+  type PronunciationProgressSnapshot,
 } from "@/lib/pronunciation-progress";
+import {
+  fetchNormalizedPronunciationProgress,
+  syncNormalizedPronunciationProgress,
+} from "@/lib/reading-progress-sync";
 import {
   getSupabaseBrowserClient,
   isSupabaseConfigured,
@@ -37,7 +42,8 @@ import {
 import type { Json } from "@/lib/supabase/database.types";
 
 type SyncStatus = "idle" | "syncing" | "synced" | "error";
-const SESSION_VALIDATION_INTERVAL_MS = 5 * 60_000;
+const SESSION_VALIDATION_INTERVAL_MS = 30 * 60_000;
+const SESSION_VALIDATION_MIN_AGE_MS = 5 * 60_000;
 
 interface AuthContextValue {
   user: User | null;
@@ -52,6 +58,14 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 function toJson(value: unknown): Json {
   return JSON.parse(JSON.stringify(value)) as Json;
+}
+
+function clearSignedOutUserData(userId: string | null) {
+  if (!userId) return;
+
+  clearStoredSessionVersion(userId);
+  clearLastReadChapters();
+  clearPronunciationProgress();
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -97,9 +111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (event === "SIGNED_OUT" && signedOutUserId) {
         setSyncStatus("idle");
-        clearStoredSessionVersion(signedOutUserId);
-        clearLastReadChapters();
-        clearPronunciationProgress();
+        clearSignedOutUserData(signedOutUserId);
       }
     });
 
@@ -110,13 +122,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [supabase]);
 
   useEffect(() => {
-    if (!supabase || !userId || !user) return;
+    if (!supabase || !userId) return;
 
     let active = true;
     let validating = false;
+    let lastValidatedAt = 0;
 
-    const validateSession = async () => {
-      if (!active || validating) return;
+    const validateSession = async (force = false) => {
+      if (
+        !active ||
+        validating ||
+        (!force &&
+          Date.now() - lastValidatedAt < SESSION_VALIDATION_MIN_AGE_MS)
+      ) {
+        return;
+      }
       validating = true;
 
       try {
@@ -153,6 +173,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch {
         // 일시적인 네트워크 오류만으로 사용자를 로그아웃시키지 않습니다.
       } finally {
+        lastValidatedAt = Date.now();
         validating = false;
       }
     };
@@ -166,7 +187,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     };
 
-    void validateSession();
+    void validateSession(true);
     const intervalId = window.setInterval(
       () => void validateSession(),
       SESSION_VALIDATION_INTERVAL_MS,
@@ -183,7 +204,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         handleVisibilityChange,
       );
     };
-  }, [supabase, user, userId]);
+  }, [supabase, userId]);
 
   useEffect(() => {
     if (!supabase || !userId) return;
@@ -193,6 +214,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let unsubscribeReading = () => {};
     let viewedTimer: number | null = null;
     let readingTimer: number | null = null;
+    let lastSyncedReading: PronunciationProgressSnapshot | null = null;
+    let readingSyncRunning = false;
+    let readingSyncQueued = false;
 
     const setStatusIfActive = (status: SyncStatus) => {
       if (active) setSyncStatus(status);
@@ -211,20 +235,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setStatusIfActive(error ? "error" : "synced");
     };
 
-    const upsertReadingProgress = async () => {
-      setStatusIfActive("syncing");
-      const progress = serializePronunciationProgressSnapshot(
-        getPronunciationProgressSnapshot(),
-      );
-      const { error } = await supabase.from("user_reading_progress").upsert(
-        {
-          user_id: userId,
-          progress: toJson(progress),
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "user_id" },
-      );
-      setStatusIfActive(error ? "error" : "synced");
+    const flushReadingProgress = async () => {
+      if (readingSyncRunning || !lastSyncedReading) return;
+      readingSyncRunning = true;
+
+      while (active && readingSyncQueued && lastSyncedReading) {
+        readingSyncQueued = false;
+        const previous = lastSyncedReading;
+        const next = getPronunciationProgressSnapshot();
+        setStatusIfActive("syncing");
+
+        try {
+          await syncNormalizedPronunciationProgress(
+            supabase,
+            userId,
+            previous,
+            next,
+          );
+          lastSyncedReading = next;
+          setStatusIfActive("synced");
+        } catch {
+          readingSyncQueued = true;
+          setStatusIfActive("error");
+          break;
+        }
+      }
+
+      readingSyncRunning = false;
     };
 
     const queueViewedSync = () => {
@@ -235,83 +272,86 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     const queueReadingSync = () => {
+      readingSyncQueued = true;
       if (readingTimer !== null) window.clearTimeout(readingTimer);
       readingTimer = window.setTimeout(() => {
-        void upsertReadingProgress();
-      }, 400);
+        readingTimer = null;
+        void flushReadingProgress();
+      }, 600);
     };
 
     const initializeSync = async () => {
       await Promise.resolve();
       setStatusIfActive("syncing");
 
-      const [viewedResult, readingResult] = await Promise.all([
-        supabase
-          .from("user_viewed_history")
-          .select("entries")
-          .eq("user_id", userId)
-          .maybeSingle(),
-        supabase
-          .from("user_reading_progress")
-          .select("progress")
-          .eq("user_id", userId)
-          .maybeSingle(),
-      ]);
+      try {
+        const [viewedResult, remoteReading] = await Promise.all([
+          supabase
+            .from("user_viewed_history")
+            .select("entries")
+            .eq("user_id", userId)
+            .maybeSingle(),
+          fetchNormalizedPronunciationProgress(supabase),
+        ]);
 
-      if (!active) return;
-      if (viewedResult.error || readingResult.error) {
-        setSyncStatus("error");
-        return;
-      }
+        if (!active) return;
+        if (viewedResult.error) throw viewedResult.error;
 
-      const mergedViewed = mergeLastReadChapters(
-        getLastReadChapters(),
-        viewedResult.data?.entries,
-      );
-      const mergedReading = mergePronunciationProgress(
-        serializePronunciationProgressSnapshot(
-          getPronunciationProgressSnapshot(),
-        ),
-        readingResult.data?.progress,
-      );
+        const remoteViewed = viewedResult.data?.entries ?? [];
+        const mergedViewed = mergeLastReadChapters(
+          getLastReadChapters(),
+          remoteViewed,
+        );
+        const mergedReading = mergePronunciationProgress(
+          serializePronunciationProgressSnapshot(
+            getPronunciationProgressSnapshot(),
+          ),
+          serializePronunciationProgressSnapshot(remoteReading),
+        );
 
-      replaceLastReadChapters(mergedViewed);
-      replacePronunciationProgress(
-        serializePronunciationProgressSnapshot(mergedReading),
-      );
+        replaceLastReadChapters(mergedViewed);
+        replacePronunciationProgress(
+          serializePronunciationProgressSnapshot(mergedReading),
+        );
 
-      const syncedAt = new Date().toISOString();
-      const [viewedUpsert, readingUpsert] = await Promise.all([
-        supabase.from("user_viewed_history").upsert(
-          {
-            user_id: userId,
-            entries: toJson(mergedViewed),
-            updated_at: syncedAt,
-          },
-          { onConflict: "user_id" },
-        ),
-        supabase.from("user_reading_progress").upsert(
-          {
-            user_id: userId,
-            progress: toJson(
-              serializePronunciationProgressSnapshot(mergedReading),
+        const viewedChanged =
+          JSON.stringify(toJson(remoteViewed)) !==
+          JSON.stringify(toJson(mergedViewed));
+        const syncTasks: PromiseLike<unknown>[] = [
+          syncNormalizedPronunciationProgress(
+            supabase,
+            userId,
+            remoteReading,
+            mergedReading,
+          ),
+        ];
+        if (viewedChanged) {
+          syncTasks.push(
+            supabase.from("user_viewed_history").upsert(
+              {
+                user_id: userId,
+                entries: toJson(mergedViewed),
+                updated_at: new Date().toISOString(),
+              },
+              { onConflict: "user_id" },
             ),
-            updated_at: syncedAt,
-          },
-          { onConflict: "user_id" },
-        ),
-      ]);
+          );
+        }
+        const syncResults = await Promise.all(syncTasks);
+        const viewedUpsert = syncResults.at(1) as
+          | { error?: unknown }
+          | undefined;
+        if (viewedUpsert?.error) throw viewedUpsert.error;
 
-      if (!active) return;
-      if (viewedUpsert.error || readingUpsert.error) {
-        setSyncStatus("error");
-        return;
+        if (!active) return;
+        lastSyncedReading = mergedReading;
+        unsubscribeViewed = subscribeToLastReadChapters(queueViewedSync);
+        unsubscribeReading =
+          subscribeToPronunciationProgress(queueReadingSync);
+        setSyncStatus("synced");
+      } catch {
+        if (active) setSyncStatus("error");
       }
-
-      unsubscribeViewed = subscribeToLastReadChapters(queueViewedSync);
-      unsubscribeReading =
-        subscribeToPronunciationProgress(queueReadingSync);
-      setSyncStatus("synced");
     };
 
     void initializeSync();
@@ -325,11 +365,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [supabase, userId]);
 
-  const signOut = async () => {
-    if (!supabase) return "로그아웃을 사용할 수 없습니다.";
+  const signOut = () => {
+    if (!supabase) {
+      return Promise.resolve("로그아웃을 사용할 수 없습니다.");
+    }
 
-    const { error } = await supabase.auth.signOut({ scope: "local" });
-    return error ? "로그아웃하지 못했습니다. 다시 시도해 주세요." : null;
+    const signedOutUserId =
+      user?.id ?? previousUserIdRef.current;
+
+    previousUserIdRef.current = null;
+    setUser(null);
+    setLoading(false);
+    setSyncStatus("idle");
+    clearSignedOutUserData(signedOutUserId);
+
+    void supabase.auth.signOut({ scope: "local" }).catch(() => {
+      // UI와 로컬 사용자 데이터는 이미 안전하게 비웠습니다.
+      // Supabase는 네트워크 오류가 나도 현재 세션 제거를 시도합니다.
+    });
+
+    return Promise.resolve(null);
   };
 
   return (

@@ -30,7 +30,10 @@ import {
   highlightAndScrollToVerse,
   runWhenVerseElementReady,
 } from "@/lib/verse-jump";
-import { scrollElementBelowHeader } from "@/lib/reading-scroll";
+import {
+  getChapterReadingScrollTarget,
+  scrollElementBelowHeader,
+} from "@/lib/reading-scroll";
 import { ChapterNav } from "@/components/ChapterNav";
 import { SefariaCommentaryModal } from "@/components/SefariaCommentaryModal";
 import { VerseDisplay } from "@/components/VerseDisplay";
@@ -278,9 +281,7 @@ export function ChapterReader({
     }
 
     const frameId = window.requestAnimationFrame(() => {
-      const target = document.querySelector<HTMLElement>(
-        "[data-chapter-reading-scroll-point]",
-      );
+      const target = getChapterReadingScrollTarget();
       if (!target) return;
 
       scrollElementBelowHeader(
@@ -358,9 +359,7 @@ export function ChapterReader({
       pendingSingleVerseScrollRef.current = { verseNum: next, behavior };
 
       if (next === currentVerse) {
-        const target = document.querySelector<HTMLElement>(
-          "[data-chapter-reading-scroll-point]",
-        );
+        const target = getChapterReadingScrollTarget();
         if (target) scrollElementBelowHeader(target, behavior);
         pendingSingleVerseScrollRef.current = null;
         return;
@@ -506,7 +505,7 @@ export function ChapterReader({
       </div>
 
       {isSingle && (
-        <div>
+        <div data-mobile-verse-navigation-scroll-point>
           <VerseNav
             className="mb-4"
             currentVerse={currentVerse}

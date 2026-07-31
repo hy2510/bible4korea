@@ -3,8 +3,9 @@ import { Geist } from "next/font/google";
 import type { Metadata, Viewport } from "next";
 import { Header } from "@/components/Header";
 import { AuthProvider } from "@/components/AuthProvider";
-import { UserProfileProvider } from "@/components/UserProfileProvider";
 import { DailyGoalProvider } from "@/components/DailyGoalProvider";
+import { ReadingAchievementProvider } from "@/components/ReadingAchievementProvider";
+import { OrganizationPendingRequestsProvider } from "@/components/OrganizationPendingRequestsProvider";
 import { BibleSearchProvider } from "@/components/BibleSearch";
 import { PwaInstallPrompt } from "@/components/PwaInstallPrompt";
 import { ScrollToTopButton } from "@/components/ScrollToTopButton";
@@ -72,21 +73,25 @@ export default function RootLayout({
         <PreferencesScript />
         <ThemeProvider>
           <AuthProvider>
-            <UserProfileProvider>
+            <OrganizationPendingRequestsProvider>
               <DailyGoalProvider>
-                <ReadingFontSizeProvider>
-                  <BibleSearchProvider>
-                    <SiteJsonLd />
-                    <Header />
-                    <main className="notranslate flex-1">{children}</main>
-                    <SiteFooter />
-                    <ScrollToTopButton />
-                    <PwaInstallPrompt />
-                    <ServiceWorkerRegister />
-                  </BibleSearchProvider>
-                </ReadingFontSizeProvider>
+                <ReadingAchievementProvider>
+                  <ReadingFontSizeProvider>
+                    <BibleSearchProvider>
+                      <SiteJsonLd />
+                      <Header />
+                      <main className="notranslate flex-1">
+                        {children}
+                      </main>
+                      <SiteFooter />
+                      <ScrollToTopButton />
+                      <PwaInstallPrompt />
+                      <ServiceWorkerRegister />
+                    </BibleSearchProvider>
+                  </ReadingFontSizeProvider>
+                </ReadingAchievementProvider>
               </DailyGoalProvider>
-            </UserProfileProvider>
+            </OrganizationPendingRequestsProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

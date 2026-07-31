@@ -1,11 +1,15 @@
 import { NextResponse } from "next/server";
+import {
+  checkPublicApiRateLimit,
+  rateLimitResponse,
+} from "@/lib/api-rate-limit.server";
 import { getStrongsEntry } from "@/lib/strongs-ko-db";
 import { isLinkableStrongs } from "@/lib/strongs-links";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ code: string }> },
 ) {
   const { code } = await context.params;
@@ -16,6 +20,15 @@ export async function GET(
       { error: "유효하지 않은 스트롱 코드입니다." },
       { status: 400 },
     );
+  }
+
+  const rateLimit = await checkPublicApiRateLimit(
+    request,
+    "strongs-entry",
+    180,
+  );
+  if (!rateLimit.allowed) {
+    return rateLimitResponse(rateLimit.retryAfter);
   }
 
   const entry = getStrongsEntry(strongs);

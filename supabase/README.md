@@ -26,28 +26,66 @@ Supabase SQL Editor에서 아래 마이그레이션 파일을 순서대로 실�
 2. `supabase/migrations/20260728010000_create_username_accounts.sql`
 3. `supabase/migrations/20260728020000_update_username_constraint.sql`
 4. `supabase/migrations/20260729000000_create_pronunciation_skip_words.sql`
+5. `supabase/migrations/20260730000000_create_user_daily_goals.sql`
+6. `supabase/migrations/20260730010000_set_default_daily_goal.sql`
+7. `supabase/migrations/20260730020000_create_user_profile_settings.sql`
+8. `supabase/migrations/20260730030000_add_user_profile_nickname.sql`
+9. `supabase/migrations/20260730040000_add_affiliation_filter_only.sql`
+10. `supabase/migrations/20260730050000_create_reading_achievements.sql`
+11. `supabase/migrations/20260730060000_create_user_friends.sql`
+12. `supabase/migrations/20260730070000_add_profile_affiliation_index.sql`
+13. `supabase/migrations/20260730080000_add_user_friends_incoming_index.sql`
+14. `supabase/migrations/20260731000000_scale_reading_progress_and_ranking.sql`
+15. `supabase/migrations/20260731010000_use_numeric_recovery_codes.sql`
+16. `supabase/migrations/20260731020000_create_organizations.sql`
+17. `supabase/migrations/20260731030000_create_authorized_activity_summary.sql`
+18. `supabase/migrations/20260731040000_secure_organizations_and_friend_activity.sql`
+19. `supabase/migrations/20260731050000_delete_owned_organization.sql`
+20. `supabase/migrations/20260731060000_scope_nicknames_to_organizations.sql`
+21. `supabase/migrations/20260731070000_update_owned_organization.sql`
+22. `supabase/migrations/20260731080000_update_organization_owner_nickname.sql`
+23. `supabase/migrations/20260731090000_update_membership_nickname.sql`
 
 모든 테이블에 Row Level Security가 활성화됩니다. 말씀 기록은 로그인한
-사용자 본인만 관리할 수 있고, 아이디·복구 답변 해시·복구 시도 기록은
+사용자 본인만 관리할 수 있고, 아이디·복구 코드 해시·복구 시도 기록은
 서버 전용 Secret key로만 접근할 수 있습니다.
+
+마지막 모임 마이그레이션은 기존 모임 문자열을 중복 없는 모임 테이블과
+가입 관계로 옮깁니다. 이후 모임 생성·검색·가입 요청·관리자 승인/거절/회원
+삭제는 서버 API를 통해서만 처리되며, 같은 모임 순위와 친구 찾기는 승인된
+모임 ID와 인덱스를 사용합니다.
+
+마지막 보안 마이그레이션은 모임 설명과 선택 비밀번호를 추가합니다. 모임
+비밀번호는 원문이 아닌 `bcrypt` 해시만 저장하며, 별명은 모임 생성 또는
+가입 요청 시 해당 모임의 회원 정보에만 저장됩니다. 다른 사용자의 상세 읽기 활동은
+모임 여부와 관계없이 친구 관계가 있는 경우에만 조회할 수 있습니다.
+모임장은 자신이 만든 모임을 삭제할 수 있으며, 삭제 시 해당 모임의 모든
+가입 관계와 회원 프로필의 모임 표시가 함께 정리됩니다.
+모임장은 모임 이름과 설명, 모임장 별명을 수정하고 선택 비밀번호를
+변경하거나 해제할 수 있습니다. 일반 회원과 가입 승인 대기 중인 사용자도
+해당 모임 안에서 사용하는 자신의 별명을 변경할 수 있습니다.
 
 ## 3. 아이디 로그인 방식
 
 Supabase Auth는 아이디 로그인을 직접 지원하지 않으므로 서버에서 아이디를
-내부 전용 주소로 변환하여 계정을 생성합니다.
+메일로 전송할 수 없는 내부 전용 식별자로 변환하여 계정을 생성합니다.
 
 - 사용자는 이메일을 입력하거나 확인하지 않습니다.
-- 내부 식별자는 `{아이디}@users.bible4korea.app` 형식이며 화면에 노출하지
+- 내부 식별자는 `{아이디}@id.bible4korea.invalid` 형식이며 화면에 노출하지
   않습니다.
+- `.invalid` 도메인은 실제 이메일 주소로 사용하거나 메일을 보낼 수 없습니다.
 - 회원은 아이디와 비밀번호로 로그인합니다.
-- 비밀번호 찾기 답변은 `scrypt` 솔트 해시만 저장됩니다.
+- 이메일·이름·전화번호 등의 개인정보는 받지 않습니다.
+- 비밀번호 복구 코드는 숫자 6자리이며 원문이 아닌 `scrypt` 솔트 해시만
+  저장됩니다.
 - 비밀번호 찾기 실패는 아이디와 접속 주소를 기준으로 15분간 제한됩니다.
 
 ## 4. Supabase Auth 설정
 
-이 앱은 아이디·비밀번호 로그인을 위해 Supabase Auth의 **Email provider**를
-사용합니다. 사용자에게 실제 이메일을 보내지 않지만, 로그인 API
-(`signInWithPassword`) 자체는 Email provider가 **켜져 있어야** 동작합니다.
+이 앱은 아이디·비밀번호의 안전한 검증과 세션 발급에만 Supabase Auth의
+**Email provider**를 내부 엔진으로 사용합니다. 실제 이메일은 수집하거나
+저장하지 않으며, 로그인 API(`signInWithPassword`) 자체는 Email provider가
+**켜져 있어야** 동작합니다.
 
 **Authentication → Providers → Email**
 
@@ -58,8 +96,8 @@ Supabase Auth는 아이디 로그인을 직접 지원하지 않으므로 서버�
 
 **Authentication → Settings**
 
-- Allow new users to sign up: **OFF** (공개 회원가입 차단, 기존 사용자 로그인은
-  계속 가능)
+- Allow new users to sign up: **OFF** (Supabase 직접 공개 가입 차단, 앱의
+  아이디 회원가입 API는 계속 사용 가능)
 
 주의: Email provider 자체를 끄거나, Email signup만 꺼 두면 기존 사용자도
 로그인하지 못하고 "아이디 또는 비밀번호가 일치하지 않습니다"처럼 보일 수

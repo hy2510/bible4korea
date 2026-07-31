@@ -6,7 +6,7 @@ import {
   scrypt as scryptCallback,
   timingSafeEqual,
 } from "node:crypto";
-import { normalizeRecoveryAnswer } from "@/lib/auth/credentials";
+import { normalizeRecoveryCode } from "@/lib/auth/credentials";
 
 const SCRYPT_KEY_LENGTH = 64;
 
@@ -22,27 +22,27 @@ function scrypt(value: string, salt: Buffer): Promise<Buffer> {
   });
 }
 
-export async function hashRecoveryAnswer(answer: string): Promise<{
+export async function hashRecoveryCode(code: string): Promise<{
   salt: string;
   hash: string;
 }> {
   const salt = randomBytes(16);
-  const hash = await scrypt(normalizeRecoveryAnswer(answer), salt);
+  const hash = await scrypt(normalizeRecoveryCode(code), salt);
   return {
     salt: salt.toString("base64"),
     hash: hash.toString("base64"),
   };
 }
 
-export async function verifyRecoveryAnswer(
-  answer: string,
+export async function verifyRecoveryCode(
+  code: string,
   encodedSalt: string,
   encodedHash: string,
 ): Promise<boolean> {
   try {
     const expected = Buffer.from(encodedHash, "base64");
     const actual = await scrypt(
-      normalizeRecoveryAnswer(answer),
+      normalizeRecoveryCode(code),
       Buffer.from(encodedSalt, "base64"),
     );
     return expected.length === actual.length && timingSafeEqual(expected, actual);
@@ -58,4 +58,3 @@ export function hashClientAddress(address: string): string {
     "local-development-only";
   return createHmac("sha256", secret).update(address).digest("hex");
 }
-

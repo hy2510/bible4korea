@@ -43,7 +43,6 @@ function computeMenuOffsetX(anchorRect: DOMRect, menuWidth: number): number {
 interface OriginalWordRowProps {
   words: OriginalWord[];
   language: WordLanguage;
-  getDictionaryUrl: (strongs: string) => string;
   highlightStrongs?: string;
   scrollHighlightToWord?: boolean;
 }
@@ -51,7 +50,6 @@ interface OriginalWordRowProps {
 function OriginalWordRowComponent({
   words,
   language,
-  getDictionaryUrl,
   highlightStrongs,
   scrollHighlightToWord = true,
 }: OriginalWordRowProps) {
@@ -310,7 +308,7 @@ function OriginalWordRowComponent({
                         setOpenIndex(null);
                       }}
                     >
-                      원어 사전
+                      단어 분석
                     </button>
                     <div
                       role="separator"
@@ -341,7 +339,6 @@ function OriginalWordRowComponent({
           initialIndex={dictionaryIndex}
           words={words}
           language={language}
-          getDictionaryUrl={getDictionaryUrl}
           onClose={() => setDictionaryIndex(null)}
         />
       )}

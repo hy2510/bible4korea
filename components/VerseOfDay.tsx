@@ -51,7 +51,9 @@ export function VerseOfDay() {
       >
         오늘의 말씀
       </p>
-      <blockquote className={`text-lg sm:text-xl ${featuredBodyClassName}`}>
+      <blockquote
+        className={`text-lg font-bold sm:text-xl ${featuredBodyClassName}`}
+      >
         &ldquo;{stripKoreanBibleQuotes(verse.text)}&rdquo;
       </blockquote>
       <footer className="mt-4 flex items-center justify-between">

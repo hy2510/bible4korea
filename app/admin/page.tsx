@@ -51,12 +51,17 @@ export default async function AdminPage() {
 
   return (
     <div className="mx-auto w-full max-w-2xl px-4 py-10 sm:px-6 sm:py-14">
-      <h1 className="font-serif text-2xl font-bold text-foreground">
-        발음 평가 관리
-      </h1>
-      <p className="mt-3 mb-7 text-sm leading-relaxed text-muted">
-        음성 인식이 어려운 단어나 문구를 평가 대상에서 제외할 수 있습니다.
-      </p>
+      {authenticated && (
+        <>
+          <h1 className="font-serif text-2xl font-bold text-foreground">
+            발음 평가 관리
+          </h1>
+          <p className="mt-3 mb-7 text-sm leading-relaxed text-muted">
+            음성 인식이 어려운 단어나 문구를 평가 대상에서 제외할 수
+            있습니다.
+          </p>
+        </>
+      )}
       <AdminPronunciationManager
         authenticated={authenticated}
         initialItems={initialItems}

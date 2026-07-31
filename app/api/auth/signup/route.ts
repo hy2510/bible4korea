@@ -1,12 +1,12 @@
 import {
-  isRecoveryQuestionId,
   isValidPassword,
-  isValidRecoveryAnswer,
+  isValidRecoveryCode,
   isValidUsername,
   normalizeUsername,
   PASSWORD_MAX_LENGTH,
   PASSWORD_MIN_LENGTH,
-  toInternalAccountEmail,
+  RECOVERY_CODE_LENGTH,
+  toSupabaseLoginIdentifier,
   toSupabasePassword,
   USERNAME_MAX_LENGTH,
   USERNAME_MIN_LENGTH,
@@ -18,7 +18,7 @@ import {
   readString,
   recordAuthSecurityEvent,
 } from "@/lib/auth/api.server";
-import { hashRecoveryAnswer } from "@/lib/auth/recovery.server";
+import { hashRecoveryCode } from "@/lib/auth/recovery.server";
 import { INITIAL_SESSION_VERSION } from "@/lib/auth/session-version";
 import { DEFAULT_DAILY_GOAL_TARGET } from "@/lib/daily-goal";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -32,11 +32,10 @@ export async function POST(request: Request) {
   const username = normalizeUsername(readString(body, "username"));
   const password = readString(body, "password");
   const passwordConfirmation = readString(body, "passwordConfirmation");
-  const recoveryQuestion = readString(body, "recoveryQuestion");
-  const recoveryAnswer = readString(body, "recoveryAnswer");
-  const recoveryAnswerConfirmation = readString(
+  const recoveryCode = readString(body, "recoveryCode");
+  const recoveryCodeConfirmation = readString(
     body,
-    "recoveryAnswerConfirmation",
+    "recoveryCodeConfirmation",
   );
 
   if (!isValidUsername(username)) {
@@ -59,18 +58,15 @@ export async function POST(request: Request) {
   if (password !== passwordConfirmation) {
     return jsonResponse({ message: "비밀번호가 서로 일치하지 않습니다." }, 400);
   }
-  if (!isRecoveryQuestionId(recoveryQuestion)) {
-    return jsonResponse({ message: "비밀번호 찾기 질문을 선택해 주세요." }, 400);
-  }
-  if (!isValidRecoveryAnswer(recoveryAnswer)) {
+  if (!isValidRecoveryCode(recoveryCode)) {
     return jsonResponse(
-      { message: "비밀번호 찾기 답변은 2~100자로 입력해 주세요." },
+      { message: `복구 코드는 숫자 ${RECOVERY_CODE_LENGTH}자리로 입력해 주세요.` },
       400,
     );
   }
-  if (recoveryAnswer !== recoveryAnswerConfirmation) {
+  if (recoveryCode !== recoveryCodeConfirmation) {
     return jsonResponse(
-      { message: "비밀번호 찾기 답변이 서로 일치하지 않습니다." },
+      { message: "복구 코드가 서로 일치하지 않습니다." },
       400,
     );
   }
@@ -90,9 +86,9 @@ export async function POST(request: Request) {
     );
   }
 
-  const { salt, hash } = await hashRecoveryAnswer(recoveryAnswer);
+  const { salt, hash } = await hashRecoveryCode(recoveryCode);
   const { data, error } = await supabase.auth.admin.createUser({
-    email: toInternalAccountEmail(username),
+    email: toSupabaseLoginIdentifier(username),
     password: toSupabasePassword(password),
     email_confirm: true,
     user_metadata: { username },
@@ -129,9 +125,8 @@ export async function POST(request: Request) {
     supabase.from("user_accounts").insert({
       user_id: data.user.id,
       username,
-      recovery_question: recoveryQuestion,
-      recovery_answer_salt: salt,
-      recovery_answer_hash: hash,
+      recovery_code_salt: salt,
+      recovery_code_hash: hash,
     }),
     supabase.from("user_daily_goals").insert({
       user_id: data.user.id,

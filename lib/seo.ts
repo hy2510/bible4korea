@@ -3,51 +3,41 @@ import type { Metadata } from "next";
 export const SITE_NAME = "한민족 원어 성경";
 export const SITE_SHORT_NAME = "원어 성경";
 export const SITE_TAGLINE = "히브리어 성경 · 헬라어 성경";
-export const PRODUCTION_SITE_URL = "https://www.bible4korea.app";
+export const PRODUCTION_SITE_URL = "https://bible4korea.app";
 
 export const SITE_DESCRIPTION =
-  "한민족 원어 성경 — 히브리어 성경(구약 원문)과 헬라어 성경(신약 원문)을 개역한글 성경과 나란히 대조하고, Strong's 원전 분해로 단어·형태소를 깊이 탐구하는 온라인 원어 성경.";
+  "히브리어·헬라어 원문과 개역한글 성경을 나란히 읽고, Strong’s 원전 분해와 소리 내어 읽기, 일일 목표와 기록을 이용할 수 있는 온라인 원어 성경.";
 
 export const SITE_KEYWORDS = [
-  "히브리어 성경",
-  "헬라어 성경",
   "한민족 원어 성경",
   "원어 성경",
-  "구약 히브리어 성경",
-  "신약 헬라어 성경",
-  "히브리어 원문 성경",
-  "헬라어 원문 성경",
+  "히브리어 성경",
+  "헬라어 성경",
   "그리스어 성경",
-  "성경",
   "온라인 성경",
-  "한국어 성경",
   "개역한글",
-  "개역한글판",
-  "성경 원문",
-  "히브리어 원문",
-  "헬라어 원문",
   "원전 분해",
   "형태소 분석",
   "Strong's",
-  "스트롱 번호",
   "성경 대조",
   "성경 읽기",
-  "바이블",
+  "소리 내어 성경 읽기",
 ];
 
 export function getSiteUrl(): string {
   if (process.env.NEXT_PUBLIC_SITE_URL) {
     return process.env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, "");
   }
-  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
-    return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
-  }
-  if (process.env.VERCEL_ENV === "production" && process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}`;
-  }
-  if (process.env.NODE_ENV === "production") {
+
+  // 검색 엔진에 노출되는 canonical·sitemap 주소가 Vercel 배포별 URL로
+  // 달라지지 않도록 운영 환경에서는 대표 도메인을 고정한다.
+  if (
+    process.env.VERCEL_ENV === "production" ||
+    process.env.NODE_ENV === "production"
+  ) {
     return PRODUCTION_SITE_URL;
   }
+
   if (process.env.VERCEL_URL) {
     return `https://${process.env.VERCEL_URL}`;
   }
@@ -115,6 +105,9 @@ export const rootMetadata: Metadata = {
   description: SITE_DESCRIPTION,
   keywords: SITE_KEYWORDS,
   applicationName: SITE_NAME,
+  creator: SITE_NAME,
+  publisher: SITE_NAME,
+  category: "education",
   openGraph: {
     type: "website",
     locale: "ko_KR",
@@ -182,17 +175,7 @@ export function getSiteJsonLd() {
         "@type": "WebSite",
         "@id": `${siteUrl}/#website`,
         name: SITE_NAME,
-        alternateName: [
-          SITE_SHORT_NAME,
-          "히브리어 성경",
-          "헬라어 성경",
-          "구약 히브리어 성경",
-          "신약 헬라어 성경",
-          "성경",
-          "온라인 성경",
-          "한민족을 위한 원어 성경",
-          "원전 분해",
-        ],
+        alternateName: SITE_SHORT_NAME,
         url: `${siteUrl}/`,
         description: SITE_DESCRIPTION,
         inLanguage: "ko",
@@ -213,15 +196,31 @@ export function getSiteJsonLd() {
         publisher: { "@id": `${siteUrl}/#organization` },
       },
       {
+        "@type": "WebApplication",
+        "@id": `${siteUrl}/#webapp`,
+        name: SITE_NAME,
+        url: `${siteUrl}/`,
+        description: SITE_DESCRIPTION,
+        applicationCategory: "EducationalApplication",
+        operatingSystem: "Any",
+        browserRequirements: "JavaScript를 지원하는 최신 웹 브라우저",
+        inLanguage: "ko",
+        isAccessibleForFree: true,
+        featureList: [
+          "히브리어·헬라어 원문과 개역한글 성경 대조",
+          "Strong’s 원전 분해와 단어 탐구",
+          "소리 내어 읽기와 발음 확인",
+          "일일 읽기 목표와 개인 읽기 기록",
+          "모임 활동",
+          "친구 간 말씀 읽기 활동 공유",
+        ],
+        publisher: { "@id": `${siteUrl}/#organization` },
+      },
+      {
         "@type": "Organization",
         "@id": `${siteUrl}/#organization`,
         name: SITE_NAME,
-        alternateName: [
-          SITE_SHORT_NAME,
-          "히브리어 성경",
-          "헬라어 성경",
-          "성경",
-        ],
+        alternateName: SITE_SHORT_NAME,
         url: `${siteUrl}/`,
         logo: {
           "@type": "ImageObject",

@@ -114,11 +114,6 @@ function getBookVerses(bookSlug: string): Map<VerseKey, ParsedMorphLine[]> | nul
   return parsed;
 }
 
-export function getGreekStrongsDictionaryUrl(strongs: string): string {
-  const number = strongs.replace(/^G/i, "");
-  return `https://dict.naver.com/grckodict/#/search?query=${encodeURIComponent(number)}`;
-}
-
 export async function getGreekWordsForChapter(
   book: BibleBook,
   chapter: number,

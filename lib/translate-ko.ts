@@ -2,6 +2,7 @@ import { stripHtml } from "@/lib/html-text";
 
 const MAX_CHUNK_LENGTH = 4500;
 const TRANSLATION_TIMEOUT_MS = 10_000;
+const MAX_TRANSLATION_CONCURRENCY = 3;
 
 function splitTextForTranslation(text: string): string[] {
   if (text.length <= MAX_CHUNK_LENGTH) return [text];
@@ -67,10 +68,29 @@ export async function translateTextToKo(text: string): Promise<string> {
   if (!normalized) return "";
 
   const chunks = splitTextForTranslation(normalized);
-  const translated = await Promise.all(chunks.map((chunk) => translateChunk(chunk)));
+  const translated: string[] = [];
+  for (const chunk of chunks) {
+    translated.push(await translateChunk(chunk));
+  }
   return translated.join("\n\n").trim();
 }
 
 export async function translateTextsToKo(texts: string[]): Promise<string[]> {
-  return Promise.all(texts.map((text) => translateTextToKo(text)));
+  const results = new Array<string>(texts.length);
+  let nextIndex = 0;
+
+  const worker = async () => {
+    while (nextIndex < texts.length) {
+      const index = nextIndex++;
+      results[index] = await translateTextToKo(texts[index]);
+    }
+  };
+
+  await Promise.all(
+    Array.from(
+      { length: Math.min(MAX_TRANSLATION_CONCURRENCY, texts.length) },
+      () => worker(),
+    ),
+  );
+  return results;
 }

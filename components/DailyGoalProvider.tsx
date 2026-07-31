@@ -37,6 +37,7 @@ interface DailyGoalContextValue {
   loading: boolean;
   saving: boolean;
   error: string;
+  celebrationBlocking: boolean;
   saveTarget: (target: number) => Promise<boolean>;
   replayCelebration: () => void;
 }
@@ -285,9 +286,25 @@ function DailyGoalAccountProvider({
   );
   const achievedToday = achievedDates.has(today);
   const replayCelebration = useCallback(() => {
-    if (!achievedToday) return;
+    if (
+      !achievedToday &&
+      (!target || todayCount < target)
+    ) {
+      return;
+    }
     setCelebration(createCelebrationContent(true));
-  }, [achievedToday]);
+  }, [achievedToday, target, todayCount]);
+  const celebrationBlocking =
+    Boolean(celebration) ||
+    Boolean(
+      userId &&
+        isBibleReadingPage &&
+        (loading ||
+          (!error &&
+            target &&
+            todayCount >= target &&
+            !achievedToday)),
+    );
 
   const saveTarget = useCallback(
     async (nextTarget: number) => {
@@ -334,12 +351,14 @@ function DailyGoalAccountProvider({
       loading,
       saving,
       error,
+      celebrationBlocking,
       saveTarget,
       replayCelebration,
     }),
     [
       achievedDates,
       achievedToday,
+      celebrationBlocking,
       error,
       goalStartedDate,
       loading,

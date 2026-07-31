@@ -1,4 +1,8 @@
 import { NextResponse } from "next/server";
+import {
+  checkPublicApiRateLimit,
+  rateLimitResponse,
+} from "@/lib/api-rate-limit.server";
 import { searchBookGroups, searchVerses } from "@/lib/bible-search";
 
 export const dynamic = "force-dynamic";
@@ -26,6 +30,15 @@ export async function GET(request: Request) {
     Number.isInteger(pageSize) && pageSize > 0
       ? Math.min(pageSize, MAX_PAGE_SIZE)
       : DEFAULT_PAGE_SIZE;
+
+  const rateLimit = await checkPublicApiRateLimit(
+    request,
+    "bible-search",
+    120,
+  );
+  if (!rateLimit.allowed) {
+    return rateLimitResponse(rateLimit.retryAfter);
+  }
 
   const results = book
     ? searchVerses(query, page, safePageSize, book)

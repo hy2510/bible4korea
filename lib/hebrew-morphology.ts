@@ -55,11 +55,6 @@ export function parseStrongsNumber(lemma: string): string {
   return match ? `H${match[1]}` : lemma;
 }
 
-export function getStrongsDictionaryUrl(strongs: string): string {
-  const number = strongs.replace(/^H/i, "");
-  return `https://dict.naver.com/hbokodict/#/search?query=${encodeURIComponent(number)}`;
-}
-
 export function formatHebrewWord(text: string): string {
   return text.replace(/\//g, "");
 }
