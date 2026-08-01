@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState, useSyncExternalStore } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { useUserNickname } from "@/components/useUserNickname";
-import type { BibleBook } from "@/lib/bible-api";
+import type { BibleBook } from "@/lib/bible-types";
 import {
   deleteLastReadBooks,
   getLastReadChapters,

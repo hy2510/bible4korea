@@ -1,6 +1,4 @@
-import type { Chapter } from "@/lib/bible-api";
-import type { VerseOfDay } from "@/lib/verse-of-day";
-import { fetchVerseOfDayFromApi } from "@/lib/verse-of-day";
+import type { Chapter } from "@/lib/bible-types";
 
 const API_BASE = "https://api.midvash.com/v1";
 
@@ -33,10 +31,13 @@ export async function fetchChapter(
   bookSlug: string,
   chapter: number,
 ): Promise<Chapter> {
-  if (bookSlug === "genesis") {
-    const response = await fetch(`/api/bible/${bookSlug}/${chapter}`);
-    if (!response.ok) throw new Error(`본문 요청 실패 (${response.status})`);
-    return (await response.json()) as Chapter;
+  // Avoid serving stale bible JSON previously cached as immutable.
+  const localResponse = await fetch(
+    `/api/bible/${bookSlug}/${chapter}?v=3`,
+    { cache: "no-store" },
+  );
+  if (localResponse.ok) {
+    return (await localResponse.json()) as Chapter;
   }
 
   const data = await fetchMidvash<ChapterData>(`/kor/${bookSlug}/${chapter}`);
@@ -47,8 +48,4 @@ export async function fetchChapter(
     chapter: data.chapter,
     verses: data.verses,
   };
-}
-
-export async function fetchVerseOfDay(): Promise<VerseOfDay> {
-  return fetchVerseOfDayFromApi();
 }

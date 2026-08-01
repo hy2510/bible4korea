@@ -1,40 +1,26 @@
-import { getBookSync, getBooksSync } from "@/lib/bible-books";
-import { getHebrewWordsForChapter, type HebrewWord } from "@/lib/hebrew-morphology";
-import { getGreekWordsForChapter, type GreekWord } from "@/lib/greek-morphology";
-import {
-  fetchVerseOfDayFromApi,
-  type VerseOfDay,
-} from "@/lib/verse-of-day";
-import { getLocalKoreanChapter } from "@/lib/local-korean-bible";
+export type {
+  BibleBook,
+  Chapter,
+  GreekWord,
+  HebrewWord,
+  ParallelChapter,
+  Testament,
+  VerseWord,
+} from "@/lib/bible-types";
 
-export type { VerseOfDay };
+import { getBookSync, getBooksSync } from "@/lib/bible-books";
+import { getHebrewWordsForChapter } from "@/lib/hebrew-morphology";
+import { getGreekWordsForChapter } from "@/lib/greek-morphology";
+import { getLocalKoreanChapter } from "@/lib/local-korean-bible";
+import type {
+  BibleBook,
+  Chapter,
+  ParallelChapter,
+} from "@/lib/bible-types";
 
 const API_BASE = "https://api.midvash.com/v1";
 const USER_AGENT = "Bible4Korea/0.1.0";
 export const BIBLE_VERSION = "kor";
-
-export type Testament = "old" | "new";
-
-export interface BibleBook {
-  id: number;
-  name: string;
-  slug: string;
-  koSlug: string;
-  abbrev: string;
-  chapters: number;
-  testament: Testament;
-  category: string;
-}
-
-interface ApiBook {
-  id: number;
-  name: { ko: string };
-  slug: Record<string, string>;
-  abbrev: { ko: string };
-  chapters: number;
-  testament: Testament;
-  category: string;
-}
 
 interface ApiResponse<T> {
   data: T;
@@ -47,26 +33,6 @@ interface ChapterData {
   bookName: string;
   chapter: number;
   verses: string[];
-}
-
-export interface Chapter {
-  bookSlug: string;
-  bookName: string;
-  chapter: number;
-  verses: string[];
-  translation?: string;
-  version?: string;
-}
-
-export interface ParallelChapter extends Chapter {
-  hebrewWordVerses: HebrewWord[][] | null;
-  greekWordVerses: GreekWord[][] | null;
-}
-
-export type { HebrewWord, GreekWord };
-
-export async function getVerseOfDay(): Promise<VerseOfDay> {
-  return fetchVerseOfDayFromApi();
 }
 
 async function fetchApi<T>(path: string): Promise<T> {
@@ -87,19 +53,6 @@ async function fetchApi<T>(path: string): Promise<T> {
 
   const json: ApiResponse<T> = await res.json();
   return json.data;
-}
-
-function mapBook(book: ApiBook): BibleBook {
-  return {
-    id: book.id,
-    name: book.name.ko,
-    slug: book.slug.en,
-    koSlug: book.slug.ko,
-    abbrev: book.abbrev.ko,
-    chapters: book.chapters,
-    testament: book.testament,
-    category: book.category,
-  };
 }
 
 export async function getBooks(): Promise<BibleBook[]> {

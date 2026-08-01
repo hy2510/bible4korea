@@ -13,6 +13,7 @@
     "db:setup-morphgnt": "node scripts/setup-morphgnt.mjs",
     "db:setup-bible-search": "node scripts/build-bible-search.mjs",
     "db:import-rnksv-genesis": "node scripts/import-rnksv-genesis.mjs",
+    "db:apply-rnksv": "node scripts/apply-rnksv.mjs",
     "db:setup-strongs-search": "node scripts/build-strongs-index.mjs"
   },
   "dependencies": {

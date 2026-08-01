@@ -11,7 +11,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import { saveLastReadChapter } from "@/lib/last-read";
-import type { BibleBook } from "@/lib/bible-api";
+import type { BibleBook } from "@/lib/bible-types";
 import {
   getPronunciationProgressSnapshot,
   getServerPronunciationProgressSnapshot,
@@ -130,6 +130,7 @@ export function ChapterReader({
   );
   const jumpBehavior: ScrollBehavior =
     jumpFromSearch || getVerseFromHash() ? "instant" : "smooth";
+  const firstVerseKorean = verses[0]?.korean;
 
   useEffect(() => {
     if (
@@ -166,8 +167,11 @@ export function ChapterReader({
   useEffect(() => {
     let cancelled = false;
 
-    setSefariaCommentaryVerses(new Set());
-    setSefariaModalVerse(null);
+    queueMicrotask(() => {
+      if (cancelled) return;
+      setSefariaCommentaryVerses(new Set());
+      setSefariaModalVerse(null);
+    });
 
     fetch(`/api/sefaria/${bookSlug}/${chapter}`)
       .then(async (response) => {
@@ -189,7 +193,8 @@ export function ChapterReader({
 
   useEffect(() => {
     const hashVerse = getVerseFromHash();
-    setCurrentVerse(clampVerse(hashVerse ?? 1, verses.length));
+    const nextVerse = clampVerse(hashVerse ?? 1, verses.length);
+    queueMicrotask(() => setCurrentVerse(nextVerse));
   }, [bookSlug, chapter, verses.length]);
 
   useEffect(() => {
@@ -206,18 +211,19 @@ export function ChapterReader({
     if (!hashVerse) return;
 
     const next = clampVerse(hashVerse, verses.length);
-    setCurrentVerse((prev) => (prev === next ? prev : next));
+    queueMicrotask(() => {
+      setCurrentVerse((prev) => (prev === next ? prev : next));
+    });
   }, [viewMode, verses.length, hash]);
 
   useEffect(() => {
     if (viewMode !== "full") return;
     if (getVerseFromHash()) return;
 
-    const first = verses[0];
-    if (!first) return;
+    if (!firstVerseKorean) return;
 
-    saveLastReadChapter(bookSlug, bookName, chapter, 1, first.korean);
-  }, [viewMode, bookSlug, bookName, chapter, verses.length, verses[0]?.korean]);
+    saveLastReadChapter(bookSlug, bookName, chapter, 1, firstVerseKorean);
+  }, [viewMode, bookSlug, bookName, chapter, firstVerseKorean]);
 
   useEffect(() => {
     if (viewMode !== "single") return;
@@ -338,7 +344,7 @@ export function ChapterReader({
       fullHashJumpCleanupRef.current?.();
       fullHashJumpCleanupRef.current = null;
     };
-  }, [viewMode, verses.length, bookSlug, chapter, hash, jumpBehavior]);
+  }, [viewMode, verses, bookSlug, chapter, hash, jumpBehavior]);
 
   const handleViewModeChange = (mode: VerseViewMode) => {
     setViewMode(mode);

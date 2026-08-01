@@ -29,7 +29,9 @@ function VerseDisplayComponent({
   verseNum,
   korean,
   hebrewWords,
+  hebrewWordGroups,
   greekWords,
+  greekWordGroups,
   onVerseSelect,
   registerAnchor = true,
   highlightStrongs,
@@ -101,23 +103,81 @@ function VerseDisplayComponent({
         )}
       </p>
 
-      {hebrewWords && hebrewWords.length > 0 && (
-        <OriginalWordRow
-          words={hebrewWords}
-          language="hebrew"
-          highlightStrongs={highlightStrongs}
-          scrollHighlightToWord={scrollHighlightToWord}
-        />
-      )}
+      {hebrewWordGroups && hebrewWordGroups.length > 0
+        ? hebrewWordGroups.map((group, groupIndex) => (
+            <div key={`he-${group.verseNum}`}>
+              {hebrewWordGroups.length > 1 && (
+                <p
+                  dir="ltr"
+                  className={`text-[11px] font-medium text-stone-400 ${
+                    groupIndex === 0
+                      ? "mt-3 border-t border-stone-100 pt-3"
+                      : "mt-3"
+                  }`}
+                >
+                  원문 {group.verseNum}절
+                </p>
+              )}
+              <OriginalWordRow
+                words={group.words}
+                language="hebrew"
+                highlightStrongs={highlightStrongs}
+                scrollHighlightToWord={
+                  scrollHighlightToWord && groupIndex === 0
+                }
+                suppressTopBorder={
+                  hebrewWordGroups.length > 1 || groupIndex > 0
+                }
+              />
+            </div>
+          ))
+        : hebrewWords &&
+          hebrewWords.length > 0 && (
+            <OriginalWordRow
+              words={hebrewWords}
+              language="hebrew"
+              highlightStrongs={highlightStrongs}
+              scrollHighlightToWord={scrollHighlightToWord}
+            />
+          )}
 
-      {greekWords && greekWords.length > 0 && (
-        <OriginalWordRow
-          words={greekWords}
-          language="greek"
-          highlightStrongs={highlightStrongs}
-          scrollHighlightToWord={scrollHighlightToWord}
-        />
-      )}
+      {greekWordGroups && greekWordGroups.length > 0
+        ? greekWordGroups.map((group, groupIndex) => (
+            <div key={`el-${group.verseNum}-${groupIndex}`}>
+              {greekWordGroups.length > 1 && (
+                <p
+                  dir="ltr"
+                  className={`text-[11px] font-medium text-stone-400 ${
+                    groupIndex === 0
+                      ? "mt-3 border-t border-stone-100 pt-3"
+                      : "mt-3"
+                  }`}
+                >
+                  원문 {group.verseNum}절
+                </p>
+              )}
+              <OriginalWordRow
+                words={group.words}
+                language="greek"
+                highlightStrongs={highlightStrongs}
+                scrollHighlightToWord={
+                  scrollHighlightToWord && groupIndex === 0
+                }
+                suppressTopBorder={
+                  greekWordGroups.length > 1 || groupIndex > 0
+                }
+              />
+            </div>
+          ))
+        : greekWords &&
+          greekWords.length > 0 && (
+            <OriginalWordRow
+              words={greekWords}
+              language="greek"
+              highlightStrongs={highlightStrongs}
+              scrollHighlightToWord={scrollHighlightToWord}
+            />
+          )}
     </div>
   );
 }

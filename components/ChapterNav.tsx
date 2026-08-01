@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { BibleBook } from "@/lib/bible-api";
+import type { BibleBook } from "@/lib/bible-types";
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/ChevronIcons";
 
 interface ChapterNavProps {

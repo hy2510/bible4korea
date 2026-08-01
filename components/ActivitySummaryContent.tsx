@@ -339,7 +339,7 @@ function WeeklyReadingChart({
                   <div
                     id={dayTooltipId}
                     role="tooltip"
-                    className={`absolute bottom-full z-20 mb-3 min-w-max rounded-xl bg-stone-900 px-3 py-2 text-xs text-white shadow-lg dark:bg-stone-100 dark:text-stone-900 ${tooltipPosition}`}
+                    className={`absolute top-full z-20 mt-3 min-w-max rounded-xl bg-stone-900 px-3 py-2 text-xs text-white shadow-lg dark:bg-stone-100 dark:text-stone-900 ${tooltipPosition}`}
                   >
                     <p className="font-bold">{day.dayLabel}요일</p>
                     {comparisonSummary ? (
@@ -378,7 +378,7 @@ function WeeklyReadingChart({
                     )}
                     <span
                       aria-hidden
-                      className={`absolute top-full size-0 border-x-[6px] border-t-[7px] border-x-transparent border-t-stone-900 dark:border-t-stone-100 ${arrowPosition}`}
+                      className={`absolute bottom-full size-0 border-x-[6px] border-b-[7px] border-x-transparent border-b-stone-900 dark:border-b-stone-100 ${arrowPosition}`}
                     />
                   </div>
                 )}

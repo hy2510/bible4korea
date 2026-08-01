@@ -1,4 +1,4 @@
-import type { GreekWord } from "@/lib/greek-morphology";
+import type { GreekWord } from "@/lib/bible-types";
 import { OriginalWordRow } from "@/components/OriginalWordRow";
 
 interface GreekWordRowProps {

@@ -10,7 +10,6 @@ import { HomeBibleReadingProgressCard } from "@/components/HomeBibleReadingProgr
 import { HomeDailyGoalCard } from "@/components/HomeDailyGoalCard";
 import { LastReadCard } from "@/components/LastReadCard";
 import { OrganizationApprovalAlert } from "@/components/OrganizationApprovalAlert";
-import { VerseOfDay } from "@/components/VerseOfDay";
 
 const SHOW_HOME_GUIDE_BUTTON = false;
 
@@ -87,8 +86,6 @@ export function HomeContent({ bibleVerseCounts }: HomeContentProps) {
           )}
         </div>
       </section>
-
-      <VerseOfDay />
 
       <div className="mb-13 divide-y divide-stone-200/80 overflow-hidden rounded-2xl border border-stone-200/80 bg-white empty:hidden dark:divide-stone-800 dark:border-stone-800 dark:bg-stone-900/60">
         <HomeDailyGoalCard />

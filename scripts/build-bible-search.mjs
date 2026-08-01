@@ -6,13 +6,28 @@ import books from "../data/books.json" with { type: "json" };
 
 const API_BASE = "https://api.midvash.com/v1";
 const DB_PATH = path.join("data", "bible-search.sqlite");
-const RNKSV_GENESIS_PATH = path.join("data", "rnksv-genesis.json");
+const RNKSV_DIR = path.join("data", "rnksv");
 const MORPHGNT_DIR = path.join("data", "morphgnt");
 const LEMMA_MAP_PATH = path.join("data", "greek-lemma-strongs.json");
 const CONCURRENCY = 12;
-const rnksvGenesis = fs.existsSync(RNKSV_GENESIS_PATH)
-  ? JSON.parse(fs.readFileSync(RNKSV_GENESIS_PATH, "utf8"))
-  : null;
+
+function loadLocalRnksvBooks() {
+  if (!fs.existsSync(RNKSV_DIR)) return new Map();
+
+  const books = new Map();
+  for (const fileName of fs.readdirSync(RNKSV_DIR)) {
+    if (!fileName.startsWith("rnksv-") || !fileName.endsWith(".json")) continue;
+    const data = JSON.parse(
+      fs.readFileSync(path.join(RNKSV_DIR, fileName), "utf8"),
+    );
+    if (data?.bookSlug && Array.isArray(data.chapters)) {
+      books.set(data.bookSlug, data);
+    }
+  }
+  return books;
+}
+
+const rnksvBooks = loadLocalRnksvBooks();
 
 const BOOK_SLUG_TO_MORPHHB = {
   genesis: "Genesis",
@@ -205,12 +220,13 @@ function buildStrongsIndex(db) {
 }
 
 async function fetchChapter(bookSlug, chapter) {
-  if (bookSlug === "genesis" && rnksvGenesis?.chapters?.[chapter - 1]) {
+  const localBook = rnksvBooks.get(bookSlug);
+  if (localBook?.chapters?.[chapter - 1]) {
     return {
-      book: rnksvGenesis.bookSlug,
-      bookName: rnksvGenesis.bookName,
+      book: localBook.bookSlug,
+      bookName: localBook.bookName,
       chapter,
-      verses: rnksvGenesis.chapters[chapter - 1],
+      verses: localBook.chapters[chapter - 1],
     };
   }
 

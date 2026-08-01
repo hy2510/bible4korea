@@ -4,9 +4,14 @@ import {
   mapCommentaryLinks,
   toSefariaVerseRef,
 } from "@/lib/sefaria";
+import { getBookSync } from "@/lib/bible-books";
+import {
+  checkPublicApiRateLimit,
+  rateLimitResponse,
+} from "@/lib/api-rate-limit.server";
 
 export async function GET(
-  _request: Request,
+  request: Request,
   {
     params,
   }: { params: Promise<{ book: string; chapter: string; verse: string }> },
@@ -14,14 +19,23 @@ export async function GET(
   const { book, chapter: chapterParam, verse: verseParam } = await params;
   const chapter = Number.parseInt(chapterParam, 10);
   const verse = Number.parseInt(verseParam, 10);
+  const bibleBook = getBookSync(book);
 
   if (
+    !bibleBook ||
     !Number.isInteger(chapter) ||
     chapter < 1 ||
+    chapter > bibleBook.chapters ||
     !Number.isInteger(verse) ||
-    verse < 1
+    verse < 1 ||
+    verse > 200
   ) {
-    return NextResponse.json({ error: "Invalid reference." }, { status: 400 });
+    return NextResponse.json({ error: "Not found." }, { status: 404 });
+  }
+
+  const rateLimit = await checkPublicApiRateLimit(request, "sefaria-verse", 120);
+  if (!rateLimit.allowed) {
+    return rateLimitResponse(rateLimit.retryAfter);
   }
 
   const ref = toSefariaVerseRef(book, chapter, verse);

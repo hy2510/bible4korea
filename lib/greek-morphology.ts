@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
-import type { BibleBook } from "@/lib/bible-api";
+import type { BibleBook } from "@/lib/bible-types";
+import { fetchBssChapterWords } from "@/lib/bible-supersearch";
 import { getKoreanGlosses } from "@/lib/strongs-ko-db";
 
 export interface GreekWord {
@@ -120,6 +121,23 @@ export async function getGreekWordsForChapter(
 ): Promise<GreekWord[][] | null> {
   if (book.testament !== "new") return null;
 
+  const fromBss = await fetchBssChapterWords(book, chapter);
+  const bssUsable =
+    Boolean(fromBss) &&
+    fromBss!.some((verse) =>
+      verse.some((word) => Boolean(word.strongs) && Boolean(word.text)),
+    );
+  if (bssUsable) {
+    return fromBss;
+  }
+
+  return getGreekWordsForChapterLocal(book, chapter);
+}
+
+async function getGreekWordsForChapterLocal(
+  book: BibleBook,
+  chapter: number,
+): Promise<GreekWord[][] | null> {
   const bookVerses = getBookVerses(book.slug);
   if (!bookVerses) return null;
 
@@ -133,8 +151,23 @@ export async function getGreekWordsForChapter(
 
   if (verseKeys.length === 0) return null;
 
-  const verses = verseKeys.map((key) => bookVerses.get(key) ?? []);
-  const strongsNumbers = verses.flatMap((verse) =>
+  // Index by verse number with explicit holes for MorphGNT-skipped verses
+  // (e.g. Matt 17:21). Never compact into a dense array — that shifts later
+  // verses and double-bundles Greek after Korean "(본문 없음)" slots.
+  const maxVerse = Math.max(
+    ...verseKeys.map((key) => Number(key.split(":")[1])),
+  );
+  const versesByNumber: ParsedMorphLine[][] = Array.from(
+    { length: maxVerse },
+    () => [],
+  );
+
+  for (let verseNum = 1; verseNum <= maxVerse; verseNum += 1) {
+    versesByNumber[verseNum - 1] =
+      bookVerses.get(`${chapter}:${verseNum}` as VerseKey) ?? [];
+  }
+
+  const strongsNumbers = versesByNumber.flatMap((verse) =>
     verse
       .map((word) => lookupStrongs(word.lemma, word.norm))
       .filter((strongs): strongs is string => Boolean(strongs)),
@@ -142,7 +175,7 @@ export async function getGreekWordsForChapter(
 
   const glossMap = getKoreanGlosses(strongsNumbers);
 
-  return verses.map((verse) =>
+  return versesByNumber.map((verse) =>
     verse.map((word) => {
       const strongs = lookupStrongs(word.lemma, word.norm);
       return {

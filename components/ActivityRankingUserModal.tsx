@@ -111,9 +111,18 @@ export function ActivityRankingUserModal({
   const updateFriendship = async () => {
     if (isFriend === null || friendPending) return;
 
+    const nextIsFriend = !isFriend;
+    if (
+      !nextIsFriend &&
+      !window.confirm(
+        `${user.displayName}님과 친구를 해제하시겠습니까?\n해제하면 내가 찾은 친구 목록에서 사라집니다.`,
+      )
+    ) {
+      return;
+    }
+
     setFriendPending(true);
     setFriendError("");
-    const nextIsFriend = !isFriend;
 
     try {
       const response = await authenticatedFetch(

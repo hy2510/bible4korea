@@ -84,7 +84,7 @@ export async function GET(request: Request) {
   }
 
   let members: OrganizationMember[] = [];
-  if (membership.role === "owner" && membership.status === "approved") {
+  if (membership.status === "approved") {
     const memberResult = await authenticated.supabase
       .from("organization_memberships")
       .select(

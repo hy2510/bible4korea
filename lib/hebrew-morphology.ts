@@ -1,5 +1,6 @@
 import morphhb from "morphhb";
-import type { BibleBook } from "@/lib/bible-api";
+import type { BibleBook } from "@/lib/bible-types";
+import { fetchBssChapterWords } from "@/lib/bible-supersearch";
 import { getKoreanGlosses } from "@/lib/strongs-ko-db";
 
 export interface HebrewWord {
@@ -71,6 +72,23 @@ export async function getHebrewWordsForChapter(
 ): Promise<HebrewWord[][] | null> {
   if (book.testament !== "old") return null;
 
+  const fromBss = await fetchBssChapterWords(book, chapter);
+  const bssUsable =
+    Boolean(fromBss) &&
+    fromBss!.some((verse) =>
+      verse.some((word) => Boolean(word.strongs) && Boolean(word.text)),
+    );
+  if (bssUsable) {
+    return fromBss;
+  }
+
+  return getHebrewWordsForChapterLocal(book, chapter);
+}
+
+async function getHebrewWordsForChapterLocal(
+  book: BibleBook,
+  chapter: number,
+): Promise<HebrewWord[][] | null> {
   const morphhbBook = getMorphhbBook(book.slug);
   if (!morphhbBook) return null;
 

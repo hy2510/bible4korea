@@ -1,4 +1,4 @@
-import type { BibleBook } from "@/lib/bible-api";
+import type { BibleBook } from "@/lib/bible-types";
 import type { PronunciationProgressSnapshot } from "@/lib/pronunciation-progress";
 
 export interface BookReadingAchievement {

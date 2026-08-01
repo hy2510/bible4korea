@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { BibleBook } from "@/lib/bible-api";
+import type { BibleBook } from "@/lib/bible-types";
 import {
   getChapterPronunciationProgress,
   type PronunciationProgressSnapshot,

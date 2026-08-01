@@ -11,7 +11,7 @@ import { BookSelector } from "@/components/BookSelector";
 import { ChapterReader } from "@/components/ChapterReader";
 import { ChapterSelector } from "@/components/ChapterSelector";
 import { fetchChapter } from "@/lib/bible-api-browser";
-import type { BibleBook, GreekWord, HebrewWord } from "@/lib/bible-api";
+import type { BibleBook, GreekWord, HebrewWord } from "@/lib/bible-types";
 import {
   getChapterPronunciationProgress,
   getPronunciationProgressSnapshot,
@@ -20,6 +20,8 @@ import {
   subscribeToPronunciationProgress,
 } from "@/lib/pronunciation-progress";
 import type { ChapterVerse } from "@/lib/verse-types";
+import { alignHebrewWordsToKoreanVerses } from "@/lib/hebrew-verse-alignment";
+import { alignGreekWordsToKoreanVerses } from "@/lib/greek-verse-alignment";
 import {
   isElementAlignedBelowHeader,
 } from "@/lib/reading-scroll";
@@ -124,7 +126,8 @@ export function ReadPageContent({
 
         try {
           const morphologyRes = await fetch(
-            `/api/morphology/${book.slug}/${chapterNum}`,
+            `/api/morphology/${book.slug}/${chapterNum}?v=4`,
+            { cache: "no-store" },
           );
           if (morphologyRes.ok) {
             morphology = (await morphologyRes.json()) as MorphologyResponse;
@@ -135,6 +138,17 @@ export function ReadPageContent({
 
         if (cancelled) return;
 
+        const hebrewWordGroups = alignHebrewWordsToKoreanVerses(
+          book.slug,
+          chapterNum,
+          morphology.hebrewWordVerses,
+          chapterData.verses.length,
+        );
+        const greekWordGroups = alignGreekWordsToKoreanVerses(
+          chapterData.verses,
+          morphology.greekWordVerses,
+        );
+
         setPronunciationChapterVerseCount(
           book.slug,
           chapterNum,
@@ -144,8 +158,8 @@ export function ReadPageContent({
           chapterData.verses.map((text: string, index: number) => ({
             verseNum: index + 1,
             korean: text,
-            hebrewWords: morphology.hebrewWordVerses?.[index],
-            greekWords: morphology.greekWordVerses?.[index],
+            hebrewWordGroups: hebrewWordGroups?.[index],
+            greekWordGroups: greekWordGroups?.[index],
           })),
         );
       } catch {
@@ -194,9 +208,6 @@ export function ReadPageContent({
             {book.name}
           </h1>
           <p className="mt-1 text-lg text-amber-800">{chapterNum}장</p>
-          {book.slug === "genesis" ? (
-            <p className="mt-1 text-xs font-medium text-stone-400">새번역</p>
-          ) : null}
           {currentChapterProgress.totalVerses > 0 && (
             <div
               data-chapter-pronunciation-progress

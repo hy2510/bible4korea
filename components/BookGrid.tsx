@@ -5,7 +5,7 @@ import Link from "next/link";
 import { MedalIcon } from "@/components/AchievementIcons";
 import { useAuth } from "@/components/AuthProvider";
 import { useReadingAchievements } from "@/components/ReadingAchievementProvider";
-import type { BibleBook } from "@/lib/bible-api";
+import type { BibleBook } from "@/lib/bible-types";
 import {
   getBookPronunciationProgress,
   getPronunciationProgressSnapshot,

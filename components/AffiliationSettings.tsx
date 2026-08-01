@@ -462,7 +462,9 @@ export function AffiliationSettings({
   ) => {
     if (
       action === "remove" &&
-      !window.confirm(`${member.displayName}님을 모임에서 삭제하시겠습니까?`)
+      !window.confirm(
+        `${member.displayName}님을 모임에서 삭제하시겠습니까?\n삭제하면 해당 회원의 모임 가입이 해제되며 되돌릴 수 없습니다.`,
+      )
     ) {
       return;
     }
@@ -630,6 +632,11 @@ export function AffiliationSettings({
                           <span className="block truncate text-sm font-semibold text-foreground">
                             {organization.name}
                           </span>
+                          {organization.ownerDisplayName && (
+                            <span className="mt-1 block truncate text-xs text-muted">
+                              모임장 · {organization.ownerDisplayName}
+                            </span>
+                          )}
                           {organization.description && (
                             <span className="mt-1 block text-xs leading-5 text-muted">
                               {organization.description}
@@ -1013,14 +1020,32 @@ function MembershipPanel({
             )}
           </div>
           {membership.role === "owner" ? (
-            <button
-              type="button"
-              disabled={pendingAction !== null}
-              onClick={() => setEditing((current) => !current)}
-              className="shrink-0 cursor-pointer text-xs font-semibold text-amber-800 disabled:cursor-wait disabled:opacity-60 dark:text-amber-300"
-            >
-              {editing ? "수정 취소" : "정보 수정"}
-            </button>
+            <div className="flex shrink-0 items-center gap-3">
+              {!editingNickname && (
+                <button
+                  type="button"
+                  disabled={pendingAction !== null}
+                  onClick={() => {
+                    setEditing(false);
+                    setEditingNickname(true);
+                  }}
+                  className="cursor-pointer text-xs font-semibold text-amber-800 disabled:cursor-wait disabled:opacity-60 dark:text-amber-300"
+                >
+                  별명 수정
+                </button>
+              )}
+              <button
+                type="button"
+                disabled={pendingAction !== null}
+                onClick={() => {
+                  setEditingNickname(false);
+                  setEditing((current) => !current);
+                }}
+                className="shrink-0 cursor-pointer text-xs font-semibold text-amber-800 disabled:cursor-wait disabled:opacity-60 dark:text-amber-300"
+              >
+                {editing ? "수정 취소" : "정보 수정"}
+              </button>
+            </div>
           ) : (
             <div className="flex shrink-0 items-center gap-3">
               {!editingNickname && (
@@ -1064,7 +1089,7 @@ function MembershipPanel({
         />
       )}
 
-      {membership.role !== "owner" && editingNickname && (
+      {editingNickname && (
         <MembershipNicknameEditForm
           key={membership.nickname}
           nickname={membership.nickname}
@@ -1077,48 +1102,50 @@ function MembershipPanel({
         />
       )}
 
-      {membership.role === "owner" && (
+      {membership.status === "approved" && (
         <div className="mt-6 space-y-6">
-          <div>
-            <h3 className="text-sm font-semibold text-foreground">
-              가입 요청
-              <span className="ml-1 text-xs font-medium text-muted">
-                {pendingMembers.length}
-              </span>
-            </h3>
-            {pendingMembers.length === 0 ? (
-              <p className="mt-3 rounded-xl border border-dashed border-border px-4 py-5 text-center text-sm text-muted">
-                대기 중인 가입 요청이 없습니다.
-              </p>
-            ) : (
-              <ul className="mt-3 space-y-2">
-                {pendingMembers.map((member) => (
-                  <li
-                    key={member.userId}
-                    className="flex items-center gap-3 rounded-xl border border-border px-3 py-3"
-                  >
-                    <MemberIdentity member={member} />
-                    <button
-                      type="button"
-                      disabled={pendingAction !== null}
-                      onClick={() => onReview(member, "approve")}
-                      className="cursor-pointer text-xs font-semibold text-emerald-700 disabled:cursor-wait disabled:opacity-60 dark:text-emerald-400"
+          {membership.role === "owner" && (
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">
+                가입 요청
+                <span className="ml-1 text-xs font-medium text-muted">
+                  {pendingMembers.length}
+                </span>
+              </h3>
+              {pendingMembers.length === 0 ? (
+                <p className="mt-3 rounded-xl border border-dashed border-border px-4 py-5 text-center text-sm text-muted">
+                  대기 중인 가입 요청이 없습니다.
+                </p>
+              ) : (
+                <ul className="mt-3 space-y-2">
+                  {pendingMembers.map((member) => (
+                    <li
+                      key={member.userId}
+                      className="flex items-center gap-3 rounded-xl border border-border px-3 py-3"
                     >
-                      승인
-                    </button>
-                    <button
-                      type="button"
-                      disabled={pendingAction !== null}
-                      onClick={() => onReview(member, "reject")}
-                      className="cursor-pointer text-xs font-semibold text-rose-600 disabled:cursor-wait disabled:opacity-60 dark:text-rose-400"
-                    >
-                      거절
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+                      <MemberIdentity member={member} />
+                      <button
+                        type="button"
+                        disabled={pendingAction !== null}
+                        onClick={() => onReview(member, "approve")}
+                        className="cursor-pointer text-xs font-semibold text-emerald-700 disabled:cursor-wait disabled:opacity-60 dark:text-emerald-400"
+                      >
+                        승인
+                      </button>
+                      <button
+                        type="button"
+                        disabled={pendingAction !== null}
+                        onClick={() => onReview(member, "reject")}
+                        className="cursor-pointer text-xs font-semibold text-rose-600 disabled:cursor-wait disabled:opacity-60 dark:text-rose-400"
+                      >
+                        거절
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
 
           <div>
             <h3 className="text-sm font-semibold text-foreground">
@@ -1138,7 +1165,7 @@ function MembershipPanel({
                     <span className="shrink-0 text-xs font-semibold text-amber-800 dark:text-amber-300">
                       모임장
                     </span>
-                  ) : (
+                  ) : membership.role === "owner" ? (
                     <button
                       type="button"
                       disabled={pendingAction !== null}
@@ -1147,12 +1174,11 @@ function MembershipPanel({
                     >
                       삭제
                     </button>
-                  )}
+                  ) : null}
                 </li>
               ))}
             </ul>
           </div>
-
         </div>
       )}
     </div>

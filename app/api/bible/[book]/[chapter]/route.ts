@@ -1,21 +1,16 @@
 import { NextResponse } from "next/server";
-import { getLocalKoreanChapter } from "@/lib/local-korean-bible";
+import {
+  getLocalKoreanBook,
+  getLocalKoreanChapter,
+  getLocalKoreanBookSlugs,
+} from "@/lib/local-korean-bible";
 
 interface RouteParams {
   params: Promise<{ book: string; chapter: string }>;
 }
 
-const BIBLE_CACHE_CONTROL = "public, max-age=31536000, immutable";
-
-export const dynamic = "force-static";
-export const dynamicParams = false;
-
-export function generateStaticParams() {
-  return Array.from({ length: 50 }, (_, index) => ({
-    book: "genesis",
-    chapter: String(index + 1),
-  }));
-}
+/** Local RNKSV JSON can be updated without a rebuild — avoid freezing responses. */
+export const dynamic = "force-dynamic";
 
 export async function GET(_request: Request, { params }: RouteParams) {
   const { book, chapter: chapterValue } = await params;
@@ -26,7 +21,20 @@ export async function GET(_request: Request, { params }: RouteParams) {
   }
 
   return NextResponse.json(chapter, {
-    headers: { "Cache-Control": BIBLE_CACHE_CONTROL },
+    headers: {
+      "Cache-Control": "private, no-cache, must-revalidate",
+    },
   });
 }
 
+/** Used by Next when statically analyzing available local chapters. */
+export function generateStaticParams() {
+  return getLocalKoreanBookSlugs().flatMap((bookSlug) => {
+    const book = getLocalKoreanBook(bookSlug);
+    const chapterCount = book?.chapters.length ?? 0;
+    return Array.from({ length: chapterCount }, (_, index) => ({
+      book: bookSlug,
+      chapter: String(index + 1),
+    }));
+  });
+}

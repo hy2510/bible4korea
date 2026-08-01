@@ -346,10 +346,13 @@ export function SefariaCommentaryModal({
     if (!open) return;
 
     const controller = new AbortController();
-    setLoading(true);
-    setError(null);
-    setCommentaries([]);
-    setActiveCommentator("");
+    queueMicrotask(() => {
+      if (controller.signal.aborted) return;
+      setLoading(true);
+      setError(null);
+      setCommentaries([]);
+      setActiveCommentator("");
+    });
 
     fetch(`/api/sefaria/${bookSlug}/${chapter}/${verse}`, {
       signal: controller.signal,

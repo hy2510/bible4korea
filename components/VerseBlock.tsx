@@ -1,5 +1,5 @@
-import type { GreekWord } from "@/lib/greek-morphology";
-import type { HebrewWord } from "@/lib/hebrew-morphology";
+import type { GreekWord } from "@/lib/bible-types";
+import type { HebrewWord } from "@/lib/bible-types";
 import { GreekWordRow } from "@/components/GreekWordRow";
 import { HebrewWordRow } from "@/components/HebrewWordRow";
 import { KoreanVerseText } from "@/components/KoreanVerseText";
@@ -9,9 +9,6 @@ interface VerseBlockProps {
   korean: string;
   hebrewWords?: HebrewWord[];
   greekWords?: GreekWord[];
-  bookSlug: string;
-  bookName: string;
-  chapter: number;
 }
 
 export function VerseBlock({
@@ -19,9 +16,6 @@ export function VerseBlock({
   korean,
   hebrewWords,
   greekWords,
-  bookSlug,
-  bookName,
-  chapter,
 }: VerseBlockProps) {
   return (
     <div

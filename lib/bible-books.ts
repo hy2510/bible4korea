@@ -1,5 +1,5 @@
 import booksData from "@/data/books.json";
-import type { BibleBook } from "@/lib/bible-api";
+import type { BibleBook } from "@/lib/bible-types";
 
 const books = booksData as BibleBook[];
 

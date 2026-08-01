@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ReadPageContent } from "@/components/ReadPageContent";
 import { getBookSync, getBooksSync } from "@/lib/bible-books";
+import { hasLocalKoreanBook } from "@/lib/local-korean-bible";
 import { createPageMetadata } from "@/lib/seo";
 import { parseStrongsQuery } from "@/lib/strongs-links";
 
@@ -29,9 +30,13 @@ export async function generateMetadata({
     });
   }
 
+  const koreanTranslation = hasLocalKoreanBook(book.slug)
+    ? "새번역"
+    : "개역한글";
+
   return createPageMetadata({
     title: `${book.name} ${chapter}장`,
-    description: `${book.name} ${chapter}장 ${book.testament === "old" ? "히브리어" : "헬라어"} 원문과 ${book.slug === "genesis" ? "새번역" : "개역한글"} 성경을 나란히 읽고, Strong’s 원전 분해로 단어의 뜻과 형태를 살펴보세요.`,
+    description: `${book.name} ${chapter}장 ${book.testament === "old" ? "히브리어" : "헬라어"} 원문과 ${koreanTranslation} 성경을 나란히 읽고, Strong’s 원전 분해로 단어의 뜻과 형태를 살펴보세요.`,
     path: `/read/${book.slug}/${chapter}`,
   });
 }

@@ -101,9 +101,13 @@ export function SiteFooter() {
             Copyright ©{currentYear} {SITE_NAME}. All rights reserved.
           </p>
           <p className="leading-5">
-            성경 본문: 새번역(창세기) · Midvash API/개역한글판(그 외) ·
-            구약 히브리어(OSHB) · 신약 헬라어(MorphGNT/SBLGNT) ·
-            Strong&apos;s (LOG)
+            성경 본문: 새번역(RNKSV) · 구약 히브리어(OSHB) ·
+            신약 헬라어(MorphGNT/SBLGNT) · Strong&apos;s (LOG)
+          </p>
+          <p className="max-w-2xl leading-5">
+            본 제품에 사용한 『성경전서 새번역』의 저작권은 재단법인
+            대한성서공회 소유이며 재단법인 대한성서공회의 허락을 받고
+            사용하였음.
           </p>
           <p className="leading-5">
             Credit: 호열 · 라엘 · 준범 · 준서

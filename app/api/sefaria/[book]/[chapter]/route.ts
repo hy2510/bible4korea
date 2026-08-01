@@ -4,16 +4,32 @@ import {
   fetchSefariaLinks,
   toSefariaChapterRef,
 } from "@/lib/sefaria";
+import { getBookSync } from "@/lib/bible-books";
+import {
+  checkPublicApiRateLimit,
+  rateLimitResponse,
+} from "@/lib/api-rate-limit.server";
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ book: string; chapter: string }> },
 ) {
   const { book, chapter: chapterParam } = await params;
   const chapter = Number.parseInt(chapterParam, 10);
+  const bibleBook = getBookSync(book);
 
-  if (!Number.isInteger(chapter) || chapter < 1) {
-    return NextResponse.json({ error: "Invalid chapter." }, { status: 400 });
+  if (
+    !bibleBook ||
+    !Number.isInteger(chapter) ||
+    chapter < 1 ||
+    chapter > bibleBook.chapters
+  ) {
+    return NextResponse.json({ error: "Not found." }, { status: 404 });
+  }
+
+  const rateLimit = await checkPublicApiRateLimit(request, "sefaria-chapter", 120);
+  if (!rateLimit.allowed) {
+    return rateLimitResponse(rateLimit.retryAfter);
   }
 
   const ref = toSefariaChapterRef(book, chapter);

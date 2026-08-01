@@ -1,4 +1,4 @@
-import type { BibleBook } from "@/lib/bible-api";
+import type { BibleBook } from "@/lib/bible-types";
 
 export interface TanakhSection {
   id: "torah" | "neviim" | "ketuvim";
@@ -159,6 +159,22 @@ export const NEW_TESTAMENT_SECTIONS: NewTestamentSection[] = [
     slugs: ["revelation"],
   },
 ];
+
+/** 성경 목록 UI(타나크 + 신약 분류)와 동일한 권 순서 */
+export const BIBLE_LIST_SLUG_ORDER = [
+  ...TANAKH_SLUG_ORDER,
+  ...NEW_TESTAMENT_SECTIONS.flatMap((section) => section.slugs),
+];
+
+const bibleListSlugIndex = new Map(
+  BIBLE_LIST_SLUG_ORDER.map((slug, index) => [slug, index]),
+);
+
+export function compareBibleListOrder(aSlug: string, bSlug: string): number {
+  const aIndex = bibleListSlugIndex.get(aSlug) ?? Number.MAX_SAFE_INTEGER;
+  const bIndex = bibleListSlugIndex.get(bSlug) ?? Number.MAX_SAFE_INTEGER;
+  return aIndex - bIndex;
+}
 
 export function groupNewTestamentBySection(
   books: BibleBook[],

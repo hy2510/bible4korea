@@ -4,7 +4,7 @@ import { execFileSync } from "node:child_process";
 import Database from "better-sqlite3";
 
 const [csvPath, supplementalPath] = process.argv.slice(2);
-const OUTPUT_PATH = path.join("data", "rnksv-genesis.json");
+const OUTPUT_PATH = path.join("data", "rnksv", "rnksv-01-genesis.json");
 const SEARCH_DB_PATH = path.join("data", "bible-search.sqlite");
 const EXPECTED_VERSE_COUNTS = [
   31, 25, 24, 26, 32, 22, 24, 22, 29, 32,

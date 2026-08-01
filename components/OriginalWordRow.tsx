@@ -45,6 +45,7 @@ interface OriginalWordRowProps {
   language: WordLanguage;
   highlightStrongs?: string;
   scrollHighlightToWord?: boolean;
+  suppressTopBorder?: boolean;
 }
 
 function OriginalWordRowComponent({
@@ -52,6 +53,7 @@ function OriginalWordRowComponent({
   language,
   highlightStrongs,
   scrollHighlightToWord = true,
+  suppressTopBorder = false,
 }: OriginalWordRowProps) {
   const { openSearch } = useBibleSearch();
   const [openIndex, setOpenIndex] = useState<number | null>(null);
@@ -184,7 +186,11 @@ function OriginalWordRowComponent({
       <div
         dir={isHebrew ? "rtl" : "ltr"}
         lang={isHebrew ? "he" : "el"}
-        className="mt-3 flex flex-wrap gap-x-2 gap-y-3 border-t border-stone-100 pt-3 sm:gap-x-3"
+        className={
+          suppressTopBorder
+            ? "mt-2 flex flex-wrap gap-x-2 gap-y-3 sm:gap-x-3"
+            : "mt-3 flex flex-wrap gap-x-2 gap-y-3 border-t border-stone-100 pt-3 sm:gap-x-3"
+        }
       >
         {words.map((word, index) => {
           const isPlaceholderStrongs =

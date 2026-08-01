@@ -41,6 +41,7 @@ export interface OrganizationSearchItem {
   name: string;
   description: string | null;
   requiresPassword: boolean;
+  ownerDisplayName: string | null;
 }
 
 export interface OrganizationSearchResponse {

@@ -3,9 +3,16 @@ import path from "node:path";
 import Database from "better-sqlite3";
 import { parseStrongsQuery } from "@/lib/strongs-links";
 import { getKoreanGloss } from "@/lib/strongs-ko-db";
+import { compareBibleListOrder } from "@/lib/book-order";
 
 const DB_PATH = path.join(process.cwd(), "data", "bible-search.sqlite");
 const PAGE_SIZE = 10;
+
+function sortBookGroups(rows: BibleSearchBookGroup[]): BibleSearchBookGroup[] {
+  return [...rows].sort((a, b) =>
+    compareBibleListOrder(a.bookSlug, b.bookSlug),
+  );
+}
 
 export interface BibleSearchResult {
   bookSlug: string;
@@ -138,7 +145,7 @@ export function searchStrongsBookGroups(
     queryGloss: getStrongsQueryGloss(strongs),
     total,
     view: "books",
-    books: rows,
+    books: sortBookGroups(rows),
   };
 }
 
@@ -260,7 +267,7 @@ export function searchBookGroups(query: string): BibleSearchBooksResponse | null
     query: trimmed,
     total,
     view: "books",
-    books: rows,
+    books: sortBookGroups(rows),
   };
 }
 

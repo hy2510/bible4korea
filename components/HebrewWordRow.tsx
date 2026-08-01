@@ -1,4 +1,4 @@
-import type { HebrewWord } from "@/lib/hebrew-morphology";
+import type { HebrewWord } from "@/lib/bible-types";
 import { OriginalWordRow } from "@/components/OriginalWordRow";
 
 interface HebrewWordRowProps {

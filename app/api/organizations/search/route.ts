@@ -6,8 +6,10 @@ import {
 import {
   isValidOrganizationName,
   ORGANIZATION_SEARCH_PAGE_SIZE,
+  type OrganizationSearchItem,
   type OrganizationSearchResponse,
 } from "@/lib/organizations";
+import { getUserDisplayName } from "@/lib/user-profile";
 
 export const dynamic = "force-dynamic";
 
@@ -72,14 +74,72 @@ export async function GET(request: Request) {
 
   const rows = data ?? [];
   const hasMore = rows.length > ORGANIZATION_SEARCH_PAGE_SIZE;
-  const items = rows
-    .slice(0, ORGANIZATION_SEARCH_PAGE_SIZE)
-    .map((organization) => ({
-      id: organization.id,
-      name: organization.name,
-      description: organization.description,
-      requiresPassword: organization.requires_password,
-    }));
+  const pageRows = rows.slice(0, ORGANIZATION_SEARCH_PAGE_SIZE);
+  const organizationIds = pageRows.map((organization) => organization.id);
+
+  const ownerDisplayNameByOrgId = new Map<string, string>();
+  if (organizationIds.length > 0) {
+    const ownerResult = await authenticated.supabase
+      .from("organization_memberships")
+      .select("organization_id, user_id, nickname")
+      .in("organization_id", organizationIds)
+      .eq("role", "owner")
+      .eq("status", "approved");
+
+    if (ownerResult.error) {
+      return Response.json(
+        { message: "모임 검색 결과를 불러오지 못했습니다." },
+        {
+          status: 500,
+          headers: { "Cache-Control": "private, no-store" },
+        },
+      );
+    }
+
+    const ownerRows = ownerResult.data ?? [];
+    const ownerUserIds = ownerRows.map((owner) => owner.user_id);
+    const accountsByUserId = new Map<string, string>();
+
+    if (ownerUserIds.length > 0) {
+      const accountResult = await authenticated.supabase
+        .from("user_accounts")
+        .select("user_id, username")
+        .in("user_id", ownerUserIds);
+
+      if (accountResult.error) {
+        return Response.json(
+          { message: "모임 검색 결과를 불러오지 못했습니다." },
+          {
+            status: 500,
+            headers: { "Cache-Control": "private, no-store" },
+          },
+        );
+      }
+
+      for (const account of accountResult.data ?? []) {
+        accountsByUserId.set(account.user_id, account.username);
+      }
+    }
+
+    for (const owner of ownerRows) {
+      ownerDisplayNameByOrgId.set(
+        owner.organization_id,
+        getUserDisplayName(
+          owner.nickname,
+          accountsByUserId.get(owner.user_id),
+        ),
+      );
+    }
+  }
+
+  const items: OrganizationSearchItem[] = pageRows.map((organization) => ({
+    id: organization.id,
+    name: organization.name,
+    description: organization.description,
+    requiresPassword: organization.requires_password,
+    ownerDisplayName:
+      ownerDisplayNameByOrgId.get(organization.id) ?? null,
+  }));
 
   return Response.json(
     {
