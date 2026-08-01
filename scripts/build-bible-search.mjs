@@ -6,9 +6,13 @@ import books from "../data/books.json" with { type: "json" };
 
 const API_BASE = "https://api.midvash.com/v1";
 const DB_PATH = path.join("data", "bible-search.sqlite");
+const RNKSV_GENESIS_PATH = path.join("data", "rnksv-genesis.json");
 const MORPHGNT_DIR = path.join("data", "morphgnt");
 const LEMMA_MAP_PATH = path.join("data", "greek-lemma-strongs.json");
 const CONCURRENCY = 12;
+const rnksvGenesis = fs.existsSync(RNKSV_GENESIS_PATH)
+  ? JSON.parse(fs.readFileSync(RNKSV_GENESIS_PATH, "utf8"))
+  : null;
 
 const BOOK_SLUG_TO_MORPHHB = {
   genesis: "Genesis",
@@ -201,6 +205,15 @@ function buildStrongsIndex(db) {
 }
 
 async function fetchChapter(bookSlug, chapter) {
+  if (bookSlug === "genesis" && rnksvGenesis?.chapters?.[chapter - 1]) {
+    return {
+      book: rnksvGenesis.bookSlug,
+      bookName: rnksvGenesis.bookName,
+      chapter,
+      verses: rnksvGenesis.chapters[chapter - 1],
+    };
+  }
+
   const res = await fetch(`${API_BASE}/kor/${bookSlug}/${chapter}`, {
     headers: { Accept: "application/json", "User-Agent": "Bible4Korea/0.1.0" },
   });

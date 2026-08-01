@@ -3,7 +3,7 @@ import path from "node:path";
 import Database from "better-sqlite3";
 import morphhb from "morphhb";
 
-const DB_PATH = path.join("data", "bible-search.sqlite");
+const DB_PATH = process.argv[2] ?? path.join("data", "bible-search.sqlite");
 const MORPHGNT_DIR = path.join("data", "morphgnt");
 const LEMMA_MAP_PATH = path.join("data", "greek-lemma-strongs.json");
 

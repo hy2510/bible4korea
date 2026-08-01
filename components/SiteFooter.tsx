@@ -101,8 +101,9 @@ export function SiteFooter() {
             Copyright ©{currentYear} {SITE_NAME}. All rights reserved.
           </p>
           <p className="leading-5">
-            성경 본문: Midvash API · 개역한글판 · 구약 히브리어(OSHB) · 신약
-            헬라어(MorphGNT/SBLGNT) · Strong&apos;s (LOG)
+            성경 본문: 새번역(창세기) · Midvash API/개역한글판(그 외) ·
+            구약 히브리어(OSHB) · 신약 헬라어(MorphGNT/SBLGNT) ·
+            Strong&apos;s (LOG)
           </p>
           <p className="leading-5">
             Credit: 호열 · 라엘 · 준범 · 준서

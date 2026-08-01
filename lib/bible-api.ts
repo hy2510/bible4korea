@@ -5,6 +5,7 @@ import {
   fetchVerseOfDayFromApi,
   type VerseOfDay,
 } from "@/lib/verse-of-day";
+import { getLocalKoreanChapter } from "@/lib/local-korean-bible";
 
 export type { VerseOfDay };
 
@@ -53,6 +54,8 @@ export interface Chapter {
   bookName: string;
   chapter: number;
   verses: string[];
+  translation?: string;
+  version?: string;
 }
 
 export interface ParallelChapter extends Chapter {
@@ -116,6 +119,12 @@ export async function getChapter(
   chapter: number,
   version = BIBLE_VERSION,
 ): Promise<Chapter> {
+  const localChapter =
+    version === BIBLE_VERSION
+      ? getLocalKoreanChapter(bookSlug, chapter)
+      : null;
+  if (localChapter) return localChapter;
+
   const data = await fetchApi<ChapterData>(
     `/${version}/${bookSlug}/${chapter}`,
   );

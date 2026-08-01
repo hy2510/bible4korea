@@ -6,7 +6,7 @@ export const SITE_TAGLINE = "히브리어 성경 · 헬라어 성경";
 export const PRODUCTION_SITE_URL = "https://bible4korea.app";
 
 export const SITE_DESCRIPTION =
-  "히브리어·헬라어 원문과 개역한글 성경을 나란히 읽고, Strong’s 원전 분해와 소리 내어 읽기, 일일 목표와 기록을 이용할 수 있는 온라인 원어 성경.";
+  "히브리어·헬라어 원문과 한국어 성경을 나란히 읽고, Strong’s 원전 분해와 소리 내어 읽기, 일일 목표와 기록을 이용할 수 있는 온라인 원어 성경.";
 
 export const SITE_KEYWORDS = [
   "한민족 원어 성경",
@@ -15,6 +15,7 @@ export const SITE_KEYWORDS = [
   "헬라어 성경",
   "그리스어 성경",
   "온라인 성경",
+  "새번역",
   "개역한글",
   "원전 분해",
   "형태소 분석",
@@ -192,7 +193,7 @@ export function getSiteJsonLd() {
           },
         ],
         keywords:
-          "히브리어 성경, 헬라어 성경, 원어 성경, 개역한글, Strong's, 원전 분해",
+          "히브리어 성경, 헬라어 성경, 원어 성경, 새번역, 개역한글, Strong's, 원전 분해",
         publisher: { "@id": `${siteUrl}/#organization` },
       },
       {
@@ -207,7 +208,7 @@ export function getSiteJsonLd() {
         inLanguage: "ko",
         isAccessibleForFree: true,
         featureList: [
-          "히브리어·헬라어 원문과 개역한글 성경 대조",
+          "히브리어·헬라어 원문과 한국어 성경 대조",
           "Strong’s 원전 분해와 단어 탐구",
           "소리 내어 읽기와 발음 확인",
           "일일 읽기 목표와 개인 읽기 기록",

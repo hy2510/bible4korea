@@ -33,6 +33,12 @@ export async function fetchChapter(
   bookSlug: string,
   chapter: number,
 ): Promise<Chapter> {
+  if (bookSlug === "genesis") {
+    const response = await fetch(`/api/bible/${bookSlug}/${chapter}`);
+    if (!response.ok) throw new Error(`본문 요청 실패 (${response.status})`);
+    return (await response.json()) as Chapter;
+  }
+
   const data = await fetchMidvash<ChapterData>(`/kor/${bookSlug}/${chapter}`);
 
   return {

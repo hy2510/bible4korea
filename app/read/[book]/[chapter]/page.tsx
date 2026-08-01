@@ -25,13 +25,13 @@ export async function generateMetadata({
     return createPageMetadata({
       title: "성경 읽기",
       description:
-        "한민족 원어 성경 — 히브리어 성경·헬라어 성경 원문과 개역한글판을 대조하고, 원전 분해로 읽어보세요.",
+        "한민족 원어 성경 — 히브리어 성경·헬라어 성경 원문과 한국어 성경을 대조하고, 원전 분해로 읽어보세요.",
     });
   }
 
   return createPageMetadata({
     title: `${book.name} ${chapter}장`,
-    description: `${book.name} ${chapter}장 ${book.testament === "old" ? "히브리어" : "헬라어"} 원문과 개역한글 성경을 나란히 읽고, Strong’s 원전 분해로 단어의 뜻과 형태를 살펴보세요.`,
+    description: `${book.name} ${chapter}장 ${book.testament === "old" ? "히브리어" : "헬라어"} 원문과 ${book.slug === "genesis" ? "새번역" : "개역한글"} 성경을 나란히 읽고, Strong’s 원전 분해로 단어의 뜻과 형태를 살펴보세요.`,
     path: `/read/${book.slug}/${chapter}`,
   });
 }

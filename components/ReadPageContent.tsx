@@ -194,6 +194,9 @@ export function ReadPageContent({
             {book.name}
           </h1>
           <p className="mt-1 text-lg text-amber-800">{chapterNum}장</p>
+          {book.slug === "genesis" ? (
+            <p className="mt-1 text-xs font-medium text-stone-400">새번역</p>
+          ) : null}
           {currentChapterProgress.totalVerses > 0 && (
             <div
               data-chapter-pronunciation-progress

@@ -322,7 +322,7 @@ export function BibleSearchDialog({
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6">
           {!submittedQuery && (
             <p className="py-10 text-center text-sm text-stone-500">
-              단어, 구절 등 개역한글 성경 전체를 대상으로 검색합니다.
+              단어와 구절 등 현재 제공되는 한국어 성경 본문을 검색합니다.
             </p>
           )}
 

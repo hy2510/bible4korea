@@ -67,15 +67,22 @@ export const SOFTWARE_LICENSES: LicenseEntry[] = [
 /** 성경 본문·주석·사전 등 외부 데이터 및 API */
 export const DATA_SOURCE_LICENSES: LicenseEntry[] = [
   {
+    name: "성경전서 새번역 (RNKSV)",
+    description: "창세기 한국어 성경 본문",
+    license: "재단법인 대한성서공회 사용 허가",
+    url: "https://bible.bskorea.or.kr/bible/RNKSV/GEN.1",
+    note: "본 제품에 사용한 『성경전서 새번역』의 저작권은 재단법인 대한성서공회 소유이며 재단법인 대한성서공회의 허락을 받고 사용하였음.",
+  },
+  {
     name: "Midvash API",
-    description: "개역한글판 성경 본문 및 권·장 메타데이터",
+    description: "창세기를 제외한 개역한글판 성경 본문 및 권·장 메타데이터",
     license: "Midvash 서비스 이용 약관",
     url: "https://midvash.com",
     note: "한글 성경 텍스트는 Midvash API를 통해 제공됩니다.",
   },
   {
     name: "개역한글판",
-    description: "한국어 성경 번역본",
+    description: "창세기를 제외한 한국어 성경 번역본",
     license: "대한성서공회 저작권",
     url: "https://www.bsk.or.kr",
     note: "본문 표시에 사용되는 개역한글판의 저작권은 대한성서공회에 있습니다.",
