@@ -49,31 +49,49 @@ export async function PATCH(request: Request) {
     );
   }
 
-  const { error } = await authenticated.supabase.rpc(
-    "update_organization_membership_nickname",
-    {
-      p_user_id: authenticated.user.id,
-      p_nickname: nickname,
-    },
-  );
+  const { data: membership, error: membershipError } =
+    await authenticated.supabase
+      .from("organization_memberships")
+      .select("user_id")
+      .eq("user_id", authenticated.user.id)
+      .maybeSingle();
+
+  if (membershipError) {
+    return Response.json(
+      { message: "별명을 변경하지 못했습니다. 다시 시도해 주세요." },
+      {
+        status: 500,
+        headers: { "Cache-Control": "private, no-store" },
+      },
+    );
+  }
+  if (!membership) {
+    return Response.json(
+      { message: "가입 중인 모임을 찾을 수 없습니다." },
+      {
+        status: 404,
+        headers: { "Cache-Control": "private, no-store" },
+      },
+    );
+  }
+
+  const { error } = await authenticated.supabase
+    .from("organization_memberships")
+    .update({
+      nickname,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("user_id", authenticated.user.id);
 
   if (error) {
-    const membershipRequired = error.message.includes(
-      "organization_membership_required",
-    );
-    const invalidNickname = error.message.includes(
-      "invalid_organization_nickname",
-    );
     return Response.json(
       {
-        message: membershipRequired
-          ? "가입 중인 모임을 찾을 수 없습니다."
-          : invalidNickname
-            ? `별명은 1~${ORGANIZATION_NICKNAME_MAX_LENGTH}자로 입력해 주세요.`
-            : "별명을 변경하지 못했습니다. 다시 시도해 주세요.",
+        message: error.message.toLowerCase().includes("nickname")
+          ? `별명은 1~${ORGANIZATION_NICKNAME_MAX_LENGTH}자로 입력해 주세요.`
+          : "별명을 변경하지 못했습니다. 다시 시도해 주세요.",
       },
       {
-        status: membershipRequired ? 404 : invalidNickname ? 400 : 500,
+        status: error.message.toLowerCase().includes("nickname") ? 400 : 500,
         headers: { "Cache-Control": "private, no-store" },
       },
     );

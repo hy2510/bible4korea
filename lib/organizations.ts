@@ -63,6 +63,11 @@ export function normalizeOrganizationName(value: string): string {
   return value.trim().replace(/\s+/g, " ");
 }
 
+/** Matches public.normalize_organization_name() in Postgres. */
+export function toOrganizationNameKey(value: string): string {
+  return normalizeOrganizationName(value).toLowerCase();
+}
+
 export function isValidOrganizationName(value: string): boolean {
   const normalized = normalizeOrganizationName(value);
   return (
