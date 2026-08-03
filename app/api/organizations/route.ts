@@ -17,6 +17,7 @@ import {
   ORGANIZATION_NICKNAME_MAX_LENGTH,
   ORGANIZATION_PASSWORD_MAX_LENGTH,
   ORGANIZATION_PASSWORD_MIN_LENGTH,
+  toOrganizationNameKey,
   type MyOrganizationResponse,
   type OrganizationMember,
 } from "@/lib/organizations";
@@ -335,38 +336,184 @@ export async function PATCH(request: Request) {
     );
   }
 
-  const { error } = await authenticated.supabase.rpc(
-    "update_owned_organization",
-    {
-      p_owner_user_id: authenticated.user.id,
-      p_name: name,
-      p_nickname: nickname,
-      p_description: description || null,
-      p_password: passwordAction === "set" ? password : null,
-      p_password_action: passwordAction,
-    },
-  );
+  const { data: ownership, error: ownershipError } =
+    await authenticated.supabase
+      .from("organization_memberships")
+      .select("organization_id")
+      .eq("user_id", authenticated.user.id)
+      .eq("role", "owner")
+      .eq("status", "approved")
+      .maybeSingle();
 
-  if (error) {
-    const ownerRequired = error.message.includes(
-      "organization_owner_required",
+  if (ownershipError) {
+    return noStoreJson(
+      { message: "모임 정보를 수정하지 못했습니다. 다시 시도해 주세요." },
+      500,
     );
-    const nameTaken = error.message.includes("organization_name_taken");
-    const invalidNickname = error.message.includes(
-      "invalid_organization_nickname",
+  }
+  if (!ownership) {
+    return noStoreJson(
+      { message: "모임장만 모임 정보를 수정할 수 있습니다." },
+      403,
     );
+  }
+
+  const organizationId = ownership.organization_id;
+  const now = new Date().toISOString();
+  const normalizedKey = toOrganizationNameKey(name);
+
+  if (passwordAction === "set" || passwordAction === "remove") {
+    const { error: passwordUpdateError } = await authenticated.supabase.rpc(
+      "update_owned_organization",
+      {
+        p_owner_user_id: authenticated.user.id,
+        p_name: name,
+        p_nickname: nickname,
+        p_description: description || null,
+        p_password: passwordAction === "set" ? password : null,
+        p_password_action: passwordAction,
+      },
+    );
+
+    if (passwordUpdateError) {
+      const message = passwordUpdateError.message;
+      const ownerRequired = message.includes("organization_owner_required");
+      const nameTaken = message.includes("organization_name_taken");
+      const invalidNickname = message.includes(
+        "invalid_organization_nickname",
+      );
+      const missingFunction =
+        message.toLowerCase().includes("could not find the function") ||
+        message.toLowerCase().includes("schema cache");
+
+      if (!missingFunction) {
+        return noStoreJson(
+          {
+            message: ownerRequired
+              ? "모임장만 모임 정보를 수정할 수 있습니다."
+              : nameTaken
+                ? "이미 사용 중인 모임 이름입니다."
+                : invalidNickname
+                  ? `별명은 1~${ORGANIZATION_NICKNAME_MAX_LENGTH}자로 입력해 주세요.`
+                  : "모임 정보를 수정하지 못했습니다. 다시 시도해 주세요.",
+          },
+          ownerRequired ? 403 : nameTaken ? 409 : invalidNickname ? 400 : 500,
+        );
+      }
+
+      // Older DB without p_nickname: update password via legacy RPC, then
+      // apply nickname with a direct membership update.
+      const { error: legacyError } = await authenticated.supabase.rpc(
+        "update_owned_organization",
+        {
+          p_owner_user_id: authenticated.user.id,
+          p_name: name,
+          p_description: description || null,
+          p_password: passwordAction === "set" ? password : null,
+          p_password_action: passwordAction,
+        } as never,
+      );
+
+      if (legacyError) {
+        const legacyMessage = legacyError.message;
+        return noStoreJson(
+          {
+            message: legacyMessage.includes("organization_owner_required")
+              ? "모임장만 모임 정보를 수정할 수 있습니다."
+              : legacyMessage.includes("organization_name_taken")
+                ? "이미 사용 중인 모임 이름입니다."
+                : "모임 비밀번호를 변경하지 못했습니다. 다시 시도해 주세요.",
+          },
+          legacyMessage.includes("organization_owner_required")
+            ? 403
+            : legacyMessage.includes("organization_name_taken")
+              ? 409
+              : 500,
+        );
+      }
+
+      const { error: nicknameError } = await authenticated.supabase
+        .from("organization_memberships")
+        .update({ nickname, updated_at: now })
+        .eq("organization_id", organizationId)
+        .eq("user_id", authenticated.user.id);
+
+      if (nicknameError) {
+        return noStoreJson(
+          {
+            message: `별명은 1~${ORGANIZATION_NICKNAME_MAX_LENGTH}자로 입력해 주세요.`,
+          },
+          400,
+        );
+      }
+
+      return noStoreJson({ message: "모임 정보를 수정했습니다." });
+    }
+
+    return noStoreJson({ message: "모임 정보를 수정했습니다." });
+  }
+
+  const { error: organizationError } = await authenticated.supabase
+    .from("organizations")
+    .update({
+      name,
+      normalized_name: normalizedKey,
+      description: description || null,
+      updated_at: now,
+    })
+    .eq("id", organizationId)
+    .eq("owner_user_id", authenticated.user.id);
+
+  if (organizationError) {
+    const nameTaken =
+      organizationError.code === "23505" ||
+      organizationError.message.toLowerCase().includes("duplicate") ||
+      organizationError.message.includes("organizations_normalized_name");
     return noStoreJson(
       {
-        message: ownerRequired
-          ? "모임장만 모임 정보를 수정할 수 있습니다."
-          : nameTaken
-            ? "이미 사용 중인 모임 이름입니다."
-            : invalidNickname
-              ? `별명은 1~${ORGANIZATION_NICKNAME_MAX_LENGTH}자로 입력해 주세요.`
-              : "모임 정보를 수정하지 못했습니다. 다시 시도해 주세요.",
+        message: nameTaken
+          ? "이미 사용 중인 모임 이름입니다."
+          : "모임 정보를 수정하지 못했습니다. 다시 시도해 주세요.",
       },
-      ownerRequired ? 403 : nameTaken ? 409 : invalidNickname ? 400 : 500,
+      nameTaken ? 409 : 500,
     );
+  }
+
+  const { error: nicknameError } = await authenticated.supabase
+    .from("organization_memberships")
+    .update({ nickname, updated_at: now })
+    .eq("organization_id", organizationId)
+    .eq("user_id", authenticated.user.id)
+    .eq("role", "owner")
+    .eq("status", "approved");
+
+  if (nicknameError) {
+    return noStoreJson(
+      {
+        message: `별명은 1~${ORGANIZATION_NICKNAME_MAX_LENGTH}자로 입력해 주세요.`,
+      },
+      400,
+    );
+  }
+
+  const { data: approvedMembers, error: membersError } =
+    await authenticated.supabase
+      .from("organization_memberships")
+      .select("user_id")
+      .eq("organization_id", organizationId)
+      .eq("status", "approved");
+
+  if (!membersError && approvedMembers && approvedMembers.length > 0) {
+    await authenticated.supabase
+      .from("user_profile_settings")
+      .update({
+        affiliation: name,
+        updated_at: now,
+      })
+      .in(
+        "user_id",
+        approvedMembers.map((member) => member.user_id),
+      );
   }
 
   return noStoreJson({ message: "모임 정보를 수정했습니다." });

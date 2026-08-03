@@ -406,7 +406,11 @@ export function AffiliationSettings({
       );
       if (!response.ok) throw new Error(responseMessage);
       setMessage(responseMessage);
-      await refreshMembership();
+      try {
+        await refreshMembership();
+      } catch {
+        // 저장은 완료됐으므로 새로고침 실패만으로 실패 처리하지 않습니다.
+      }
       return true;
     } catch (updateError) {
       setError(
@@ -442,7 +446,11 @@ export function AffiliationSettings({
       );
       if (!response.ok) throw new Error(responseMessage);
       setMessage(responseMessage);
-      await refreshMembership();
+      try {
+        await refreshMembership();
+      } catch {
+        // 저장은 완료됐으므로 새로고침 실패만으로 실패 처리하지 않습니다.
+      }
       return true;
     } catch (updateError) {
       setError(
