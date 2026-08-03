@@ -1207,7 +1207,6 @@ function OrganizationEditForm({
   onSave: (input: OrganizationUpdateInput) => Promise<void>;
 }) {
   const [name, setName] = useState(membership.organizationName);
-  const [nickname, setNickname] = useState(membership.nickname);
   const [description, setDescription] = useState(
     membership.description ?? "",
   );
@@ -1223,13 +1222,6 @@ function OrganizationEditForm({
     const normalizedName = normalizeOrganizationName(name);
     if (!normalizedName) {
       setValidationError("모임 이름을 입력해 주세요.");
-      return;
-    }
-    const normalizedNickname = normalizeOrganizationNickname(nickname);
-    if (!isValidOrganizationNickname(normalizedNickname)) {
-      setValidationError(
-        `별명은 1~${ORGANIZATION_NICKNAME_MAX_LENGTH}자로 입력해 주세요.`,
-      );
       return;
     }
     if (!isValidOrganizationDescription(description)) {
@@ -1256,7 +1248,7 @@ function OrganizationEditForm({
     setValidationError("");
     await onSave({
       name: normalizedName,
-      nickname: normalizedNickname,
+      nickname: membership.nickname,
       description,
       password: removePassword ? "" : password,
       passwordConfirmation: removePassword
@@ -1293,20 +1285,6 @@ function OrganizationEditForm({
         maxLength={ORGANIZATION_NAME_MAX_LENGTH}
         value={name}
         onChange={(event) => setName(event.target.value)}
-        className={fieldClassName}
-      />
-
-      <label
-        htmlFor="organization-edit-nickname"
-        className="mt-4 mb-2 block text-sm font-semibold text-foreground"
-      >
-        모임장 별명
-      </label>
-      <input
-        id="organization-edit-nickname"
-        maxLength={ORGANIZATION_NICKNAME_MAX_LENGTH}
-        value={nickname}
-        onChange={(event) => setNickname(event.target.value)}
         className={fieldClassName}
       />
 
@@ -1473,7 +1451,7 @@ function MembershipNicknameEditForm({
         htmlFor="organization-membership-nickname"
         className="mb-2 block text-sm font-semibold text-foreground"
       >
-        모임 별명
+        내 별명
       </label>
       <input
         id="organization-membership-nickname"
