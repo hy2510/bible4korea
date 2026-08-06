@@ -30,8 +30,8 @@ export function MicrophoneIcon({
   );
 }
 
-export function CheckIcon({
-  className = "h-4 w-4",
+export function EyeIcon({
+  className = "h-5 w-5",
 }: PronunciationIconProps) {
   return (
     <svg
@@ -42,7 +42,32 @@ export function CheckIcon({
       aria-hidden
     >
       <path
-        d="m5 12 4.2 4.2L19 6.5"
+        d="M2.5 12s3.5-6.5 9.5-6.5S21.5 12 21.5 12s-3.5 6.5-9.5 6.5S2.5 12 2.5 12Z"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+      <circle cx="12" cy="12" r="2.75" strokeWidth="1.8" />
+    </svg>
+  );
+}
+
+export function CheckIcon({
+  className = "h-4 w-4",
+  active = true,
+}: PronunciationIconProps & { active?: boolean }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill={active ? "currentColor" : "none"}
+      stroke="currentColor"
+      aria-hidden
+    >
+      <circle cx="12" cy="12" r="9" strokeWidth="1.8" />
+      <path
+        d="m8 12.2 2.6 2.6L16.2 9"
+        fill="none"
+        stroke={active ? "white" : "currentColor"}
         strokeWidth="2.2"
         strokeLinecap="round"
         strokeLinejoin="round"

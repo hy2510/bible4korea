@@ -157,16 +157,22 @@ export function parseBssMarkedText(
     .map((part) => ({ text: part, strongs: "" }));
 }
 
+function isBssVerseRow(value: unknown): value is BssVerseRow {
+  return Boolean(value) && typeof value === "object" && "text" in (value as object);
+}
+
 function collectVersesFromPayload(payload: unknown): BssVerseRow[] {
   if (!payload || typeof payload !== "object") return [];
+
+  if (Array.isArray(payload)) {
+    return payload.filter(isBssVerseRow);
+  }
+
   const root = payload as Record<string, unknown>;
 
   const direct = root.verses;
   if (Array.isArray(direct)) {
-    return direct.filter(
-      (row): row is BssVerseRow =>
-        Boolean(row) && typeof row === "object" && "text" in (row as object),
-    );
+    return direct.filter(isBssVerseRow);
   }
 
   const results = root.results;
@@ -177,24 +183,38 @@ function collectVersesFromPayload(payload: unknown): BssVerseRow[] {
       const verseList = (result as { verses?: unknown }).verses;
       if (!Array.isArray(verseList)) continue;
       for (const verse of verseList) {
-        if (verse && typeof verse === "object" && "text" in verse) {
-          verses.push(verse as BssVerseRow);
-        }
+        if (isBssVerseRow(verse)) verses.push(verse);
       }
     }
     if (verses.length > 0) return verses;
   }
 
-  // raw / minimal: { [bible]: { "1": { "1": "text", ... } } } or flat verse objects
+  // raw / minimal:
+  // - { wlc: [ { verse, text }, ... ] }
+  // - { wlc: { "1": { "1": "text", ... } } }
   for (const value of Object.values(root)) {
+    if (Array.isArray(value)) {
+      const rows = value.filter(isBssVerseRow);
+      if (rows.length > 0) return rows;
+      continue;
+    }
+
     if (!value || typeof value !== "object") continue;
     const nested = value as Record<string, unknown>;
+
+    if (isBssVerseRow(nested)) {
+      return [nested];
+    }
+
+    const chapterVerses: BssVerseRow[] = [];
     for (const [chapterKey, chapterValue] of Object.entries(nested)) {
       if (!chapterValue || typeof chapterValue !== "object") continue;
-      if ("text" in chapterValue) {
-        return [chapterValue as BssVerseRow];
+
+      if (isBssVerseRow(chapterValue)) {
+        chapterVerses.push(chapterValue);
+        continue;
       }
-      const chapterVerses: BssVerseRow[] = [];
+
       for (const [verseKey, verseText] of Object.entries(
         chapterValue as Record<string, unknown>,
       )) {
@@ -204,16 +224,12 @@ function collectVersesFromPayload(payload: unknown): BssVerseRow[] {
             verse: Number(verseKey),
             text: verseText,
           });
-        } else if (
-          verseText &&
-          typeof verseText === "object" &&
-          "text" in verseText
-        ) {
-          chapterVerses.push(verseText as BssVerseRow);
+        } else if (isBssVerseRow(verseText)) {
+          chapterVerses.push(verseText);
         }
       }
-      if (chapterVerses.length > 0) return chapterVerses;
     }
+    if (chapterVerses.length > 0) return chapterVerses;
   }
 
   return [];

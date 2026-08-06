@@ -39,6 +39,7 @@ import { SefariaCommentaryModal } from "@/components/SefariaCommentaryModal";
 import { VerseDisplay } from "@/components/VerseDisplay";
 import { VerseNav } from "@/components/VerseNav";
 import { VersePronunciationPractice } from "@/components/VersePronunciationPractice";
+import type { PronunciationHighlightMode } from "@/components/KoreanVerseText";
 
 function subscribeToHash(onStoreChange: () => void) {
   window.addEventListener("hashchange", onStoreChange);
@@ -106,10 +107,13 @@ export function ChapterReader({
     chapter: number;
     verseNum: number;
     characterCount: number;
+    highlightMode: PronunciationHighlightMode;
   } | null>(null);
   const [pronunciationPanelOpen, setPronunciationPanelOpen] = useState(false);
   const [pronunciationAutoStartVerse, setPronunciationAutoStartVerse] =
     useState<number | null>(null);
+  const [pronunciationAutoStartMode, setPronunciationAutoStartMode] =
+    useState<"silent" | "spoken" | null>(null);
   const pendingSingleVerseScrollRef = useRef<{
     verseNum: number;
     behavior: ScrollBehavior;
@@ -446,20 +450,27 @@ export function ChapterReader({
 
   const currentVerseData = verses[currentVerse - 1];
   const isSingle = viewMode === "single";
+  const currentVerseRef = useRef(currentVerse);
+  currentVerseRef.current = currentVerse;
+
   const handlePronunciationCharacterProgressChange = useCallback(
-    (characterCount: number | null) => {
+    (
+      characterCount: number | null,
+      highlightMode?: PronunciationHighlightMode | null,
+    ) => {
       setPronunciationProgress(
         characterCount === null
           ? null
           : {
               bookSlug,
               chapter,
-              verseNum: currentVerse,
+              verseNum: currentVerseRef.current,
               characterCount,
+              highlightMode: highlightMode ?? "text",
             },
       );
     },
-    [bookSlug, chapter, currentVerse],
+    [bookSlug, chapter],
   );
   const handlePronunciationCompletionChange = useCallback(
     (verseNum: number, completed: boolean, koreanText: string) => {
@@ -543,6 +554,16 @@ export function ChapterReader({
                   ? pronunciationProgress.characterCount
                   : 0
               }
+              pronunciationHighlightMode={
+                pronunciationProgress?.bookSlug === bookSlug &&
+                pronunciationProgress.chapter === chapter &&
+                pronunciationProgress.verseNum === currentVerseData.verseNum
+                  ? pronunciationProgress.highlightMode
+                  : pronunciationPanelOpen &&
+                      pronunciationAutoStartMode === "silent"
+                    ? "word-background"
+                    : "text"
+              }
               pronunciationCompleted={isPronunciationVerseCompleted(
                 pronunciationProgressSnapshot,
                 bookSlug,
@@ -617,6 +638,8 @@ export function ChapterReader({
               );
             }}
             autoStart={pronunciationAutoStartVerse === currentVerse}
+            autoStartMode={pronunciationAutoStartMode}
+            onPracticeModeStart={(mode) => setPronunciationAutoStartMode(mode)}
             onAutoStartHandled={() => setPronunciationAutoStartVerse(null)}
           />
         )}

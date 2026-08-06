@@ -126,7 +126,7 @@ export function ReadPageContent({
 
         try {
           const morphologyRes = await fetch(
-            `/api/morphology/${book.slug}/${chapterNum}?v=4`,
+            `/api/morphology/${book.slug}/${chapterNum}?v=5`,
             { cache: "no-store" },
           );
           if (morphologyRes.ok) {

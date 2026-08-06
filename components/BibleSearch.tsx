@@ -16,7 +16,10 @@ import { ChevronLeftIcon } from "@/components/ChevronIcons";
 import { lockBodyScroll, resetBodyScrollLock } from "@/lib/body-scroll-lock";
 import { stripKoreanBibleQuotes } from "@/lib/korean-verse-text";
 import { SAFE_AREA } from "@/lib/safe-area";
-import { parseStrongsQuery } from "@/lib/strongs-links";
+import {
+  parseGematriaQuery,
+  parseStrongsQuery,
+} from "@/lib/strongs-links";
 
 const PAGE_SIZE = 10;
 
@@ -33,6 +36,13 @@ interface BookGroup {
   bookSlug: string;
   bookName: string;
   count: number;
+}
+
+interface GematriaSearchMatch {
+  strongs: string;
+  original: string;
+  gloss: string | null;
+  gematria: number;
 }
 
 type SearchData =
@@ -54,6 +64,16 @@ type SearchData =
       total: number;
       totalPages: number;
       results: SearchResult[];
+    }
+  | {
+      view: "gematria";
+      query: string;
+      value: number;
+      page: number;
+      pageSize: number;
+      total: number;
+      totalPages: number;
+      matches: GematriaSearchMatch[];
     };
 
 function highlightText(text: string, query: string) {
@@ -122,11 +142,16 @@ function SearchPagination({
 }
 
 function normalizeSearchQuery(query: string): string {
-  return parseStrongsQuery(query) ?? query.trim();
+  const strongs = parseStrongsQuery(query);
+  if (strongs) return strongs;
+  const gematria = parseGematriaQuery(query);
+  if (gematria !== null) return String(gematria);
+  return query.trim();
 }
 
 function formatSearchQueryLabel(query: string, gloss?: string | null): string {
   if (gloss) return `${query} (${gloss})`;
+  if (parseGematriaQuery(query) !== null) return `수치 ${query}`;
   return query;
 }
 
@@ -148,6 +173,11 @@ export function BibleSearchDialog({
   const [data, setData] = useState<SearchData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [gematriaBack, setGematriaBack] = useState<{
+    query: string;
+    page: number;
+  } | null>(null);
+  const keepGematriaBackRef = useRef(false);
 
   const beginSearch = () => {
     setLoading(true);
@@ -157,6 +187,10 @@ export function BibleSearchDialog({
   const primeSearch = useCallback((nextQuery: string) => {
     const normalized = normalizeSearchQuery(nextQuery);
     if (!normalized) return;
+    if (!keepGematriaBackRef.current) {
+      setGematriaBack(null);
+    }
+    keepGematriaBackRef.current = false;
     setQuery(normalized);
     beginSearch();
     setSubmittedQuery(normalized);
@@ -172,6 +206,7 @@ export function BibleSearchDialog({
   }, [onRegisterPrime, primeSearch]);
 
   const handleClose = useCallback(() => {
+    setGematriaBack(null);
     onClose();
   }, [onClose]);
 
@@ -198,13 +233,34 @@ export function BibleSearchDialog({
     if (!submittedQuery) return;
 
     const controller = new AbortController();
-
-    const url = selectedBook
-      ? `/api/search?q=${encodeURIComponent(submittedQuery)}&book=${encodeURIComponent(selectedBook.bookSlug)}&page=${page}&pageSize=${PAGE_SIZE}`
-      : `/api/search?q=${encodeURIComponent(submittedQuery)}`;
+    const gematriaValue = parseGematriaQuery(submittedQuery);
 
     void (async () => {
       try {
+        if (gematriaValue !== null) {
+          const url = `/api/strongs/gematria/${gematriaValue}?page=${page}&pageSize=${PAGE_SIZE}&filter=all`;
+          const res = await fetch(url, { signal: controller.signal });
+          const json = await res.json();
+          if (!res.ok) {
+            throw new Error(json.error ?? "검색에 실패했습니다.");
+          }
+          setData({
+            view: "gematria",
+            query: String(gematriaValue),
+            value: gematriaValue,
+            page: json.page,
+            pageSize: json.pageSize,
+            total: json.total,
+            totalPages: json.totalPages,
+            matches: json.matches,
+          });
+          return;
+        }
+
+        const url = selectedBook
+          ? `/api/search?q=${encodeURIComponent(submittedQuery)}&book=${encodeURIComponent(selectedBook.bookSlug)}&page=${page}&pageSize=${PAGE_SIZE}`
+          : `/api/search?q=${encodeURIComponent(submittedQuery)}`;
+
         const res = await fetch(url, {
           signal: controller.signal,
         });
@@ -237,6 +293,7 @@ export function BibleSearchDialog({
     event.preventDefault();
     const nextQuery = normalizeSearchQuery(query);
     if (!nextQuery) return;
+    setGematriaBack(null);
     beginSearch();
     setQuery(nextQuery);
     setSubmittedQuery(nextQuery);
@@ -254,6 +311,25 @@ export function BibleSearchDialog({
     beginSearch();
     setSelectedBook(null);
     setPage(1);
+  };
+
+  const handleBackToGematria = () => {
+    if (!gematriaBack) return;
+    const { query: backQuery, page: backPage } = gematriaBack;
+    setGematriaBack(null);
+    beginSearch();
+    setQuery(backQuery);
+    setSubmittedQuery(backQuery);
+    setSelectedBook(null);
+    setPage(backPage);
+  };
+
+  const handleGematriaWordClick = (strongs: string) => {
+    if (data?.view === "gematria") {
+      setGematriaBack({ query: data.query, page: data.page });
+      keepGematriaBackRef.current = true;
+    }
+    primeSearch(strongs);
   };
 
   const handlePageChange = (nextPage: number) => {
@@ -307,7 +383,7 @@ export function BibleSearchDialog({
               type="search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="검색어를 입력하세요"
+              placeholder="단어, Strong’s, 또는 게마트리아 수치"
               className="min-w-0 flex-1 rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-base text-stone-900 outline-none ring-amber-800/20 transition-shadow placeholder:text-stone-400 focus:border-amber-300 focus:ring-4 sm:text-sm"
             />
             <button
@@ -322,8 +398,23 @@ export function BibleSearchDialog({
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6">
           {!submittedQuery && (
             <p className="py-10 text-center text-sm text-stone-500">
-              단어와 구절 등 현재 제공되는 한국어 성경 본문을 검색합니다.
+              한국어 성경 본문, Strong&apos;s 번호(H/G), 또는 숫자만 입력하면
+              게마트리아 수치와 같은 히브리어 단어를 검색합니다.
             </p>
+          )}
+
+          {gematriaBack &&
+            submittedQuery &&
+            parseGematriaQuery(submittedQuery) === null &&
+            !selectedBook && (
+            <button
+              type="button"
+              onClick={handleBackToGematria}
+              className="mb-4 inline-flex shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap text-sm font-medium text-amber-900 transition-colors hover:text-amber-950"
+            >
+              <ChevronLeftIcon className="h-4 w-4 shrink-0" />
+              게마트리아 수치 {gematriaBack.query}
+            </button>
           )}
 
           {submittedQuery && loading && (
@@ -336,10 +427,72 @@ export function BibleSearchDialog({
 
           {submittedQuery && !loading && !error && data && data.total === 0 && (
             <p className="py-10 text-center text-sm text-stone-500">
-              &ldquo;{formatSearchQueryLabel(data.query, data.queryGloss)}&rdquo;에
-              해당하는 구절이 없습니다.
+              &ldquo;{formatSearchQueryLabel(data.query, data.view === "gematria" ? null : data.queryGloss)}
+              &rdquo;에 해당하는{" "}
+              {data.view === "gematria" ? "단어가" : "구절이"} 없습니다.
             </p>
           )}
+
+          {submittedQuery &&
+            !loading &&
+            !error &&
+            data &&
+            data.total > 0 &&
+            data.view === "gematria" && (
+              <>
+                <p className="mb-4 text-sm text-stone-500">
+                  게마트리아 &ldquo;수치 {data.value}&rdquo; ·{" "}
+                  {data.total.toLocaleString()}개 단어 · 단어나 Strong&apos;s를
+                  누르면 구절을 검색합니다
+                </p>
+
+                <SearchPagination
+                  page={data.page}
+                  totalPages={data.totalPages}
+                  onPageChange={handlePageChange}
+                  className="mb-4 border-b pb-4"
+                />
+
+                <ul className="divide-y divide-stone-100/80 dark:divide-border">
+                  {data.matches.map((match) => (
+                    <li key={match.strongs}>
+                      <div className="flex w-full flex-wrap items-baseline gap-x-3 gap-y-1 px-1 py-2.5">
+                        <button
+                          type="button"
+                          onClick={() => handleGematriaWordClick(match.strongs)}
+                          className="shrink-0 cursor-pointer font-hebrew text-lg text-stone-800 transition-colors hover:text-amber-900"
+                          title={`${match.strongs} 구절 검색`}
+                        >
+                          <span dir="rtl" lang="he">
+                            {match.original}
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleGematriaWordClick(match.strongs)}
+                          title={`${match.strongs} 구절 검색`}
+                          className="shrink-0 cursor-pointer font-mono text-xs font-medium text-amber-800 underline-offset-2 transition-colors hover:text-amber-950 hover:underline"
+                        >
+                          {match.strongs}
+                        </button>
+                        {match.gloss && (
+                          <span className="min-w-0 text-sm text-stone-600">
+                            {match.gloss}
+                          </span>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+
+                <SearchPagination
+                  page={data.page}
+                  totalPages={data.totalPages}
+                  onPageChange={handlePageChange}
+                  className="mt-5 border-t pt-4"
+                />
+              </>
+            )}
 
           {submittedQuery &&
             !loading &&

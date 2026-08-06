@@ -15,7 +15,9 @@ import {
 } from "@/lib/pronunciation-match";
 import { DailyGoalProgressBar } from "@/components/DailyGoalProgressBar";
 import { useDailyGoal } from "@/components/DailyGoalProvider";
-import { MicrophoneIcon } from "@/components/PronunciationIcons";
+import { getSilentReadingWordCharacterCounts } from "@/components/KoreanVerseText";
+import { MicrophoneIcon, EyeIcon } from "@/components/PronunciationIcons";
+import type { PronunciationHighlightMode } from "@/components/KoreanVerseText";
 
 interface SpeechRecognitionAlternativeLike {
   transcript: string;
@@ -65,12 +67,18 @@ type SpeechWindow = typeof window & {
   webkitSpeechRecognition?: SpeechRecognitionConstructorLike;
 };
 
+type PracticeMode = "silent" | "spoken";
+type HighlightSpeed = "slow" | "normal" | "fast";
+
 interface VersePronunciationPracticeProps {
   bookName: string;
   chapter: number;
   verseNum: number;
   text: string;
-  onCharacterProgressChange: (characterCount: number | null) => void;
+  onCharacterProgressChange: (
+    characterCount: number | null,
+    highlightMode?: PronunciationHighlightMode | null,
+  ) => void;
   onCompletionChange: (completed: boolean) => void;
   onClose: () => void;
   hasNextVerse: boolean;
@@ -78,12 +86,47 @@ interface VersePronunciationPracticeProps {
   hasNextChapter: boolean;
   onNextChapter: () => void;
   autoStart: boolean;
+  autoStartMode?: PracticeMode | null;
+  onPracticeModeStart?: (mode: PracticeMode) => void;
   onAutoStartHandled: () => void;
 }
 
 type RecognitionStatus = "idle" | "listening";
 type SupportStatus = "checking" | "supported" | "unsupported";
 type RecognitionStallPrompt = "retry" | "finish" | null;
+
+const SILENT_READING_BASE_MS = 320;
+const SILENT_READING_PER_CHAR_MS = 110;
+const SILENT_READING_COMPLETE_PAUSE_MS = 450;
+const HIGHLIGHT_SPEED_STORAGE_KEY =
+  "bible4korea:silent-reading-highlight-speed";
+
+const HIGHLIGHT_SPEED_OPTIONS = [
+  { id: "slow" as const, label: "느림", multiplier: 1.55 },
+  { id: "normal" as const, label: "보통", multiplier: 1 },
+  { id: "fast" as const, label: "빠름", multiplier: 0.55 },
+];
+
+function isHighlightSpeed(value: string): value is HighlightSpeed {
+  return value === "slow" || value === "normal" || value === "fast";
+}
+
+function readStoredHighlightSpeed(): HighlightSpeed {
+  try {
+    const stored = window.localStorage.getItem(HIGHLIGHT_SPEED_STORAGE_KEY);
+    if (stored && isHighlightSpeed(stored)) return stored;
+  } catch {
+    // ignore storage errors
+  }
+  return "normal";
+}
+
+function getHighlightSpeedMultiplier(speed: HighlightSpeed): number {
+  return (
+    HIGHLIGHT_SPEED_OPTIONS.find((option) => option.id === speed)
+      ?.multiplier ?? 1
+  );
+}
 
 const ERROR_MESSAGES: Record<string, string> = {
   "audio-capture": "마이크를 찾을 수 없습니다. 기기 설정을 확인해 주세요.",
@@ -209,6 +252,8 @@ export function VersePronunciationPractice({
   hasNextChapter,
   onNextChapter,
   autoStart,
+  autoStartMode = null,
+  onPracticeModeStart,
   onAutoStartHandled,
 }: VersePronunciationPracticeProps) {
   const {
@@ -223,12 +268,18 @@ export function VersePronunciationPractice({
   const recognitionRestartTimeoutRef = useRef<number | null>(null);
   const recognitionStallCountRef = useRef(0);
   const manualStopRequestedRef = useRef(false);
+  const silentReadingTimeoutRef = useRef<number | null>(null);
+  const silentReadingActiveRef = useRef(false);
   const supportStatus = useSyncExternalStore(
     subscribeToSpeechRecognitionSupport,
     getSpeechRecognitionSupportSnapshot,
     getServerSpeechRecognitionSupportSnapshot,
   );
   const [status, setStatus] = useState<RecognitionStatus>("idle");
+  const [practiceMode, setPracticeMode] = useState<PracticeMode | null>(null);
+  const [silentReadingComplete, setSilentReadingComplete] = useState(false);
+  const [highlightSpeed, setHighlightSpeed] =
+    useState<HighlightSpeed>("normal");
   const [evaluation, setEvaluation] =
     useState<PronunciationEvaluation | null>(null);
   const [consecutiveFailureCount, setConsecutiveFailureCount] = useState(0);
@@ -237,6 +288,30 @@ export function VersePronunciationPractice({
   const [allowAdvanceAfterStall, setAllowAdvanceAfterStall] = useState(false);
   const [ignoredWords, setIgnoredWords] = useState<string[] | null>(null);
   const [error, setError] = useState("");
+  const highlightSpeedRef = useRef<HighlightSpeed>(highlightSpeed);
+
+  const clearSilentReadingTimer = useCallback(() => {
+    if (silentReadingTimeoutRef.current === null) return;
+    window.clearTimeout(silentReadingTimeoutRef.current);
+    silentReadingTimeoutRef.current = null;
+  }, []);
+
+  useEffect(() => {
+    setHighlightSpeed(readStoredHighlightSpeed());
+  }, []);
+
+  useEffect(() => {
+    highlightSpeedRef.current = highlightSpeed;
+  }, [highlightSpeed]);
+
+  const handleHighlightSpeedChange = useCallback((speed: HighlightSpeed) => {
+    setHighlightSpeed(speed);
+    try {
+      window.localStorage.setItem(HIGHLIGHT_SPEED_STORAGE_KEY, speed);
+    } catch {
+      // ignore storage errors
+    }
+  }, []);
 
   const clearRecognitionStallTimer = useCallback(() => {
     if (recognitionStallTimeoutRef.current === null) return;
@@ -249,6 +324,22 @@ export function VersePronunciationPractice({
     window.clearTimeout(recognitionRestartTimeoutRef.current);
     recognitionRestartTimeoutRef.current = null;
   }, []);
+
+  const onCharacterProgressChangeRef = useRef(onCharacterProgressChange);
+  const onCompletionChangeRef = useRef(onCompletionChange);
+  const onPracticeModeStartRef = useRef(onPracticeModeStart);
+
+  useEffect(() => {
+    onCharacterProgressChangeRef.current = onCharacterProgressChange;
+  }, [onCharacterProgressChange]);
+
+  useEffect(() => {
+    onCompletionChangeRef.current = onCompletionChange;
+  }, [onCompletionChange]);
+
+  useEffect(() => {
+    onPracticeModeStartRef.current = onPracticeModeStart;
+  }, [onPracticeModeStart]);
 
   useEffect(() => {
     let active = true;
@@ -264,6 +355,8 @@ export function VersePronunciationPractice({
 
   useEffect(() => {
     return () => {
+      clearSilentReadingTimer();
+      silentReadingActiveRef.current = false;
       clearRecognitionStallTimer();
       clearRecognitionRestartTimer();
       const recognition = recognitionRef.current;
@@ -275,17 +368,89 @@ export function VersePronunciationPractice({
         recognition.abort();
       }
       recognitionRef.current = null;
-      onCharacterProgressChange(null);
+      onCharacterProgressChangeRef.current(null, null);
     };
   }, [
     clearRecognitionRestartTimer,
     clearRecognitionStallTimer,
-    onCharacterProgressChange,
+    clearSilentReadingTimer,
   ]);
+
+  const stopSilentReading = useCallback(() => {
+    clearSilentReadingTimer();
+    silentReadingActiveRef.current = false;
+    setPracticeMode(null);
+    setSilentReadingComplete(false);
+    onCharacterProgressChangeRef.current(null, null);
+  }, [clearSilentReadingTimer]);
+
+  const startSilentReading = useCallback(() => {
+    clearSilentReadingTimer();
+    recognitionRef.current?.abort();
+    recognitionRef.current = null;
+    manualStopRequestedRef.current = true;
+    setStatus("idle");
+    setEvaluation(null);
+    setError("");
+    setRecognitionStallPrompt(null);
+    setAllowAdvanceAfterStall(false);
+    setSilentReadingComplete(false);
+    setPracticeMode("silent");
+    onPracticeModeStartRef.current?.("silent");
+    silentReadingActiveRef.current = true;
+
+    const wordCharacterCounts = getSilentReadingWordCharacterCounts(text);
+    if (wordCharacterCounts.length === 0) {
+      onCharacterProgressChangeRef.current(0, "word-background");
+      onCompletionChangeRef.current(true);
+      setSilentReadingComplete(true);
+      silentReadingActiveRef.current = false;
+      return;
+    }
+
+    let wordIndex = 0;
+    const advanceWord = () => {
+      if (!silentReadingActiveRef.current) return;
+
+      const characterCount = wordCharacterCounts[wordIndex] ?? 0;
+      onCharacterProgressChangeRef.current(characterCount, "word-background");
+
+      if (wordIndex >= wordCharacterCounts.length - 1) {
+        silentReadingTimeoutRef.current = window.setTimeout(() => {
+          if (!silentReadingActiveRef.current) return;
+          silentReadingActiveRef.current = false;
+          onCompletionChangeRef.current(true);
+          setSilentReadingComplete(true);
+        }, SILENT_READING_COMPLETE_PAUSE_MS);
+        return;
+      }
+
+      const currentWordLength =
+        wordIndex === 0
+          ? wordCharacterCounts[0]
+          : wordCharacterCounts[wordIndex] -
+            wordCharacterCounts[wordIndex - 1];
+      const delay =
+        (SILENT_READING_BASE_MS +
+          SILENT_READING_PER_CHAR_MS * Math.max(1, currentWordLength)) *
+        getHighlightSpeedMultiplier(highlightSpeedRef.current);
+
+      wordIndex += 1;
+      silentReadingTimeoutRef.current = window.setTimeout(advanceWord, delay);
+    };
+
+    advanceWord();
+  }, [clearSilentReadingTimer, text]);
 
   const startRecognition = useCallback(() => {
     const SpeechRecognition = getSpeechRecognitionConstructor();
     if (!SpeechRecognition || ignoredWords === null) return;
+
+    clearSilentReadingTimer();
+    silentReadingActiveRef.current = false;
+    setSilentReadingComplete(false);
+    setPracticeMode("spoken");
+    onPracticeModeStartRef.current?.("spoken");
 
     clearRecognitionStallTimer();
     clearRecognitionRestartTimer();
@@ -342,7 +507,7 @@ export function VersePronunciationPractice({
 
     recognition.onstart = () => {
       setStatus("listening");
-      onCharacterProgressChange(furthestCharacterCount);
+      onCharacterProgressChangeRef.current(furthestCharacterCount, "text");
       if (recognitionStallTimeoutRef.current === null) {
         scheduleStallRecovery();
       }
@@ -389,7 +554,7 @@ export function VersePronunciationPractice({
           ignoredWords,
         ),
       );
-      onCharacterProgressChange(furthestCharacterCount);
+      onCharacterProgressChangeRef.current(furthestCharacterCount, "text");
 
       if (
         !autoStopRequested &&
@@ -463,7 +628,7 @@ export function VersePronunciationPractice({
           } catch {
             recognitionRef.current = null;
             setStatus("idle");
-            onCharacterProgressChange(null);
+            onCharacterProgressChangeRef.current(null, null);
             setError(
               "음성 인식을 계속하지 못했습니다. 잠시 후 다시 시도해 주세요.",
             );
@@ -483,7 +648,7 @@ export function VersePronunciationPractice({
       );
 
       if (stallResolution === "retry") {
-        onCharacterProgressChange(null);
+        onCharacterProgressChangeRef.current(null, null);
         setRecognitionStallPrompt("retry");
         return;
       }
@@ -504,7 +669,7 @@ export function VersePronunciationPractice({
 
       if (stallResolution === "finish") {
         setAllowAdvanceAfterStall(true);
-        onCompletionChange(true);
+        onCompletionChangeRef.current(true);
         setRecognitionStallPrompt("finish");
         return;
       }
@@ -513,11 +678,11 @@ export function VersePronunciationPractice({
         const nextFailureCount = consecutiveFailureCountRef.current + 1;
         consecutiveFailureCountRef.current = nextFailureCount;
         setConsecutiveFailureCount(nextFailureCount);
-        onCompletionChange(nextFailureCount >= 2);
+        onCompletionChangeRef.current(nextFailureCount >= 2);
       } else {
         consecutiveFailureCountRef.current = 0;
         setConsecutiveFailureCount(0);
-        onCompletionChange(true);
+        onCompletionChangeRef.current(true);
       }
     };
 
@@ -531,28 +696,39 @@ export function VersePronunciationPractice({
     } catch {
       recognitionRef.current = null;
       setStatus("idle");
-      onCharacterProgressChange(null);
+      onCharacterProgressChangeRef.current(null, null);
       setError("음성 인식을 시작하지 못했습니다. 잠시 후 다시 시도해 주세요.");
     }
   }, [
-    onCharacterProgressChange,
-    onCompletionChange,
     clearRecognitionRestartTimer,
     clearRecognitionStallTimer,
+    clearSilentReadingTimer,
     ignoredWords,
     text,
   ]);
 
   useEffect(() => {
-    if (!autoStart || ignoredWords === null) return;
+    if (!autoStart) return;
+    if (autoStartMode === "spoken" && ignoredWords === null) return;
 
     const timeoutId = window.setTimeout(() => {
       onAutoStartHandled();
+      if (autoStartMode === "silent") {
+        startSilentReading();
+        return;
+      }
       startRecognition();
     }, 0);
 
     return () => window.clearTimeout(timeoutId);
-  }, [autoStart, ignoredWords, onAutoStartHandled, startRecognition]);
+  }, [
+    autoStart,
+    autoStartMode,
+    ignoredWords,
+    onAutoStartHandled,
+    startRecognition,
+    startSilentReading,
+  ]);
 
   const stopRecognition = () => {
     const recognition = recognitionRef.current;
@@ -577,6 +753,8 @@ export function VersePronunciationPractice({
   };
 
   const closePractice = () => {
+    clearSilentReadingTimer();
+    silentReadingActiveRef.current = false;
     clearRecognitionStallTimer();
     clearRecognitionRestartTimer();
     manualStopRequestedRef.current = true;
@@ -590,7 +768,9 @@ export function VersePronunciationPractice({
       recognitionRef.current = null;
     }
     setStatus("idle");
-    onCharacterProgressChange(null);
+    setPracticeMode(null);
+    setSilentReadingComplete(false);
+    onCharacterProgressChangeRef.current(null, null);
     onClose();
   };
 
@@ -604,10 +784,10 @@ export function VersePronunciationPractice({
   };
 
   const panelToneClasses =
-    !evaluation
-      ? "border-stone-200/90 bg-white/95 text-stone-900 dark:border-stone-700/80 dark:bg-stone-900/95 dark:text-stone-100"
-      : evaluation.tone === "great"
+    silentReadingComplete || evaluation?.tone === "great"
       ? "border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200"
+      : !evaluation
+      ? "border-stone-200/90 bg-white/95 text-stone-900 dark:border-stone-700/80 dark:bg-stone-900/95 dark:text-stone-100"
       : evaluation.tone === "good"
         ? "border-amber-200 bg-amber-50 text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200"
         : "border-rose-200 bg-rose-50 text-rose-950 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-200";
@@ -615,10 +795,18 @@ export function VersePronunciationPractice({
     ? getPronunciationStarRating(evaluation.score)
     : null;
   const canAdvance =
-    evaluation !== null &&
-    (evaluation.tone !== "retry" ||
-      consecutiveFailureCount >= 2 ||
-      allowAdvanceAfterStall);
+    silentReadingComplete ||
+    (evaluation !== null &&
+      (evaluation.tone !== "retry" ||
+        consecutiveFailureCount >= 2 ||
+        allowAdvanceAfterStall));
+  const showStartChoices =
+    practiceMode === null &&
+    !evaluation &&
+    !silentReadingComplete &&
+    status !== "listening";
+  const silentReadingRunning =
+    practiceMode === "silent" && !silentReadingComplete;
   const dailyGoalCompleted =
     dailyGoalAchievedToday ||
     Boolean(
@@ -644,12 +832,12 @@ export function VersePronunciationPractice({
             id={`pronunciation-title-${verseNum}`}
             className="text-sm font-semibold"
           >
-            소리 내어 읽기
+            말씀 읽기
           </h2>
           <button
             type="button"
             onClick={closePractice}
-            aria-label="소리 내어 읽기 닫기"
+            aria-label="말씀 읽기 닫기"
             className="-mr-1 inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full text-current opacity-60 transition-[background-color,opacity] hover:bg-black/5 hover:opacity-100 dark:hover:bg-white/10"
           >
             <span aria-hidden className="text-xl leading-none">
@@ -685,50 +873,122 @@ export function VersePronunciationPractice({
         )}
 
         <div className="mt-4">
-          {supportStatus === "supported" && !evaluation && (
-            <button
-              type="button"
-              disabled={ignoredWords === null}
-              onClick={
-                status === "listening" ? stopRecognition : startRecognition
-              }
-              className={`inline-flex min-h-11 w-full shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-colors disabled:cursor-wait disabled:opacity-60 ${
-                status === "listening"
-                  ? "border-rose-600 bg-transparent text-rose-600 hover:bg-rose-50 dark:border-rose-400 dark:text-rose-400 dark:hover:bg-rose-950/30"
-                  : "border-transparent bg-amber-800 text-white hover:bg-amber-900 dark:bg-amber-700 dark:hover:bg-amber-600"
-              }`}
-              aria-label={
-                status === "listening"
-                  ? "읽기를 마치고 평가하기"
-                  : `${bookName} ${chapter}장 ${verseNum}절 읽기 시작`
-              }
-            >
-              <span className="relative">
-                {status === "listening" && (
-                  <span className="absolute inset-0 animate-ping rounded-full bg-rose-500/40" />
-                )}
-                <MicrophoneIcon className="relative h-5 w-5" />
-              </span>
-              {ignoredWords === null
-                ? "평가 설정 불러오는 중…"
-                : status === "listening"
-                  ? "읽기 마치기"
-                  : "읽기 시작"}
-            </button>
+          {showStartChoices && (
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={startSilentReading}
+                className="inline-flex min-h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent bg-amber-800 px-3 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-amber-900 dark:bg-amber-700 dark:hover:bg-amber-600"
+                aria-label={`${bookName} ${chapter}장 ${verseNum}절 눈으로 읽기 시작`}
+              >
+                <EyeIcon className="h-5 w-5" />
+                눈으로 읽기
+              </button>
+              <button
+                type="button"
+                disabled={
+                  supportStatus !== "supported" || ignoredWords === null
+                }
+                onClick={startRecognition}
+                className="inline-flex min-h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent bg-amber-800 px-3 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-amber-900 disabled:cursor-wait disabled:opacity-60 dark:bg-amber-700 dark:hover:bg-amber-600"
+                aria-label={`${bookName} ${chapter}장 ${verseNum}절 소리 내어 읽기 시작`}
+              >
+                <MicrophoneIcon className="h-5 w-5" />
+                {ignoredWords === null && supportStatus === "supported"
+                  ? "준비 중…"
+                  : "소리 내어 읽기"}
+              </button>
+            </div>
+          )}
+
+          {practiceMode === "spoken" &&
+            supportStatus === "supported" &&
+            !evaluation && (
+              <button
+                type="button"
+                disabled={ignoredWords === null}
+                onClick={
+                  status === "listening" ? stopRecognition : startRecognition
+                }
+                className={`inline-flex min-h-11 w-full shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-colors disabled:cursor-wait disabled:opacity-60 ${
+                  status === "listening"
+                    ? "border-rose-600 bg-transparent text-rose-600 hover:bg-rose-50 dark:border-rose-400 dark:text-rose-400 dark:hover:bg-rose-950/30"
+                    : "border-transparent bg-amber-800 text-white hover:bg-amber-900 dark:bg-amber-700 dark:hover:bg-amber-600"
+                }`}
+                aria-label={
+                  status === "listening"
+                    ? "읽기를 마치고 평가하기"
+                    : `${bookName} ${chapter}장 ${verseNum}절 소리 내어 읽기 시작`
+                }
+              >
+                <span className="relative">
+                  {status === "listening" && (
+                    <span className="absolute inset-0 animate-ping rounded-full bg-rose-500/40" />
+                  )}
+                  <MicrophoneIcon className="relative h-5 w-5" />
+                </span>
+                {ignoredWords === null
+                  ? "평가 설정 불러오는 중…"
+                  : status === "listening"
+                    ? "읽기 마치기"
+                    : "소리 내어 읽기"}
+              </button>
+            )}
+
+          {silentReadingRunning && (
+            <div className="flex items-stretch gap-2">
+              <div className="flex min-w-0 flex-1 items-center gap-2">
+                <p className="shrink-0 text-xs font-medium text-stone-600 dark:text-stone-300">
+                  속도
+                </p>
+                <div
+                  className="inline-grid min-w-0 flex-1 grid-cols-3 gap-0.5 rounded-full bg-stone-900/[0.05] p-1 dark:bg-white/[0.07]"
+                  role="radiogroup"
+                  aria-label="하이라이트 속도"
+                >
+                  {HIGHLIGHT_SPEED_OPTIONS.map((option) => {
+                    const active = highlightSpeed === option.id;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        role="radio"
+                        aria-checked={active}
+                        onClick={() => handleHighlightSpeedChange(option.id)}
+                        className={`cursor-pointer rounded-full px-2.5 py-2 text-xs font-medium transition-colors ${
+                          active
+                            ? "bg-amber-800 font-semibold text-white dark:bg-amber-700 dark:text-white"
+                            : "text-stone-500 hover:text-stone-800 dark:text-stone-400 dark:hover:text-stone-200"
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={stopSilentReading}
+                className="inline-flex min-h-11 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-rose-600 bg-transparent px-4 py-2.5 text-sm font-semibold text-rose-600 transition-colors hover:bg-rose-50 dark:border-rose-400 dark:text-rose-400 dark:hover:bg-rose-950/30"
+              >
+                읽기 중단
+              </button>
+            </div>
           )}
         </div>
 
-        {supportStatus === "checking" && (
+        {showStartChoices && supportStatus === "checking" && (
           <p className="mt-4 text-xs text-stone-400">음성 인식 확인 중…</p>
         )}
 
-        {supportStatus === "unsupported" && (
+        {showStartChoices && supportStatus === "unsupported" && (
           <p
             role="status"
             className="mt-4 rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-sm leading-6 text-stone-600 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300"
           >
-            이 브라우저에서는 음성 인식을 사용할 수 없습니다. 음성 인식을
-            지원하는 브라우저에서 다시 이용해 주세요.
+            소리 내어 읽기는 이 브라우저에서 사용할 수 없습니다. 눈으로
+            읽기는 계속 이용할 수 있습니다.
           </p>
         )}
 
@@ -740,6 +1000,46 @@ export function VersePronunciationPractice({
           >
             <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-rose-500" />
             듣고 있어요. 말씀을 끝까지 소리내어 읽어 주세요.
+          </div>
+        )}
+
+        {silentReadingRunning && (
+          <div
+            role="status"
+            aria-live="polite"
+            className="mt-4 flex items-center gap-2 text-sm font-medium text-amber-800 dark:text-amber-300"
+          >
+            <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-amber-500" />
+            강조된 단어를 눈으로 따라가며 읽으세요.
+          </div>
+        )}
+
+        {silentReadingComplete && (
+          <div aria-live="polite" className="mt-4">
+            <p className="text-sm font-semibold">읽기 완료</p>
+            <div
+              className={`mt-4 grid gap-2 ${
+                canAdvance ? "grid-cols-2" : "grid-cols-1"
+              }`}
+            >
+              <button
+                type="button"
+                onClick={startSilentReading}
+                className="inline-flex min-h-11 cursor-pointer items-center justify-center rounded-xl border border-black/10 bg-white/70 px-4 py-2.5 text-sm font-semibold text-stone-900 transition-colors hover:bg-white dark:border-white/15 dark:bg-stone-950/30 dark:text-white dark:hover:bg-stone-950/50"
+              >
+                다시 읽기
+              </button>
+              {canAdvance && (
+                <button
+                  type="button"
+                  onClick={hasNextVerse ? onNextVerse : onNextChapter}
+                  disabled={!hasNextVerse && !hasNextChapter}
+                  className="inline-flex min-h-11 cursor-pointer items-center justify-center rounded-xl bg-stone-900 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-white dark:text-stone-900 dark:hover:bg-stone-100"
+                >
+                  {hasNextVerse ? "다음 구절" : "읽기 완료"}
+                </button>
+              )}
+            </div>
           </div>
         )}
 

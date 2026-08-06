@@ -61,6 +61,7 @@ interface GematriaMatch {
 }
 
 type GematriaFilter = "all" | "root" | "number";
+type GematriaSumSource = "root" | "surface";
 
 interface AnalysisFocus {
   strongs: string;
@@ -90,6 +91,28 @@ function letterRoleBadge(role: MarkedHebrewLetter["role"]): string | null {
   }
 }
 
+function hasHebrewVowels(text: string): boolean {
+  return /[\u05B0-\u05BD\u05BF-\u05C7]/.test(text);
+}
+
+function hebrewConsonantsOnly(text: string): string {
+  return text
+    .replace(/[\u0591-\u05C7]/g, "")
+    .replace(/\//g, "")
+    .replace(/[^\u05D0-\u05EA]/g, "");
+}
+
+function letterValueClassName(role: MarkedHebrewLetter["role"]): string {
+  switch (role) {
+    case "root":
+      return "inline-flex min-w-[1.5rem] items-center justify-center rounded-md bg-amber-200/80 px-1.5 py-0.5 font-semibold text-amber-950 dark:bg-amber-800/55 dark:text-amber-100";
+    case "affix":
+      return "inline-flex min-w-[1.5rem] items-center justify-center rounded-md bg-sky-200/80 px-1.5 py-0.5 font-semibold text-sky-950 dark:bg-sky-800/55 dark:text-sky-100";
+    default:
+      return "inline-flex min-w-[1.5rem] items-center justify-center rounded-md bg-sky-100/90 px-1.5 py-0.5 font-semibold text-sky-950 dark:bg-sky-900/40 dark:text-sky-100";
+  }
+}
+
 function LetterAnalysisTable({
   wordText,
   rootText,
@@ -97,6 +120,8 @@ function LetterAnalysisTable({
   surfaceValueSum,
   rootValueSum,
   hasRoot,
+  selectedSumSource,
+  onSelectSumSource,
 }: {
   wordText: string;
   rootText: string | null;
@@ -104,8 +129,13 @@ function LetterAnalysisTable({
   surfaceValueSum: number;
   rootValueSum: number;
   hasRoot: boolean;
+  selectedSumSource: GematriaSumSource;
+  onSelectSumSource: (source: GematriaSumSource) => void;
 }) {
   if (letters.length === 0) return null;
+
+  const rootSelectable = hasRoot && rootValueSum > 0;
+  const surfaceSelectable = surfaceValueSum > 0;
 
   return (
     <div className="overflow-hidden rounded-2xl border border-stone-200/80 bg-white">
@@ -206,7 +236,7 @@ function LetterAnalysisTable({
                   </td>
                   <td className="px-3 py-3 text-stone-600">
                     {item.entry ? (
-                      <span className="font-medium">
+                      <span className={letterValueClassName(item.role)}>
                         {item.entry.value}
                       </span>
                     ) : (
@@ -225,21 +255,59 @@ function LetterAnalysisTable({
           </tbody>
         </table>
       </div>
-      <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 border-t border-stone-100 px-3 py-2 text-xs text-stone-500">
-        {hasRoot && (
-          <span>
-            어근 합계{" "}
-            <strong className="font-semibold text-amber-800 dark:text-amber-300">
+      <div
+        className="flex flex-wrap items-center justify-center gap-2 border-t border-stone-100 px-3 py-2 text-xs"
+        role="tablist"
+        aria-label="게마트리아 합계 기준"
+      >
+        {rootSelectable && (
+          <button
+            type="button"
+            role="tab"
+            aria-selected={selectedSumSource === "root"}
+            onClick={() => onSelectSumSource("root")}
+            className={`inline-flex cursor-pointer items-center gap-1.5 rounded-md bg-transparent px-2.5 py-1.5 ${
+              selectedSumSource === "root"
+                ? "font-semibold text-amber-950 dark:text-amber-100"
+                : "text-stone-500"
+            }`}
+          >
+            어근 합계
+            <span
+              className={
+                selectedSumSource === "root"
+                  ? "inline-flex min-w-[1.5rem] items-center justify-center rounded-md bg-amber-200/80 px-1.5 py-0.5 font-semibold tabular-nums text-amber-950 dark:bg-amber-800/55 dark:text-amber-100"
+                  : "tabular-nums text-stone-400 dark:text-stone-500"
+              }
+            >
               {rootValueSum}
-            </strong>
-          </span>
+            </span>
+          </button>
         )}
-        <span>
-          본문 합계{" "}
-          <strong className="font-semibold text-sky-800 dark:text-sky-300">
-            {surfaceValueSum}
-          </strong>
-        </span>
+        {surfaceSelectable && (
+          <button
+            type="button"
+            role="tab"
+            aria-selected={selectedSumSource === "surface"}
+            onClick={() => onSelectSumSource("surface")}
+            className={`inline-flex cursor-pointer items-center gap-1.5 rounded-md bg-transparent px-2.5 py-1.5 ${
+              selectedSumSource === "surface"
+                ? "font-semibold text-sky-950 dark:text-sky-100"
+                : "text-stone-500"
+            }`}
+          >
+            본문 합계
+            <span
+              className={
+                selectedSumSource === "surface"
+                  ? "inline-flex min-w-[1.5rem] items-center justify-center rounded-md bg-sky-200/80 px-1.5 py-0.5 font-semibold tabular-nums text-sky-950 dark:bg-sky-800/55 dark:text-sky-100"
+                  : "tabular-nums text-stone-400 dark:text-stone-500"
+              }
+            >
+              {surfaceValueSum}
+            </span>
+          </button>
+        )}
       </div>
     </div>
   );
@@ -266,6 +334,8 @@ export function DictionaryModal({
   );
   const [gematriaPage, setGematriaPage] = useState(1);
   const [gematriaFilter, setGematriaFilter] = useState<GematriaFilter>("all");
+  const [gematriaSumSource, setGematriaSumSource] =
+    useState<GematriaSumSource>("root");
   const [gematriaFetch, setGematriaFetch] = useState<{
     value: number;
     page: number;
@@ -303,6 +373,15 @@ export function DictionaryModal({
     fetchedDefinition?.strongs === activeStrongs
       ? fetchedDefinition.data
       : null;
+  const analysisDisplayText =
+    isHebrew && analysisText && !hasHebrewVowels(analysisText)
+      ? strongsDefinition?.original &&
+        hasHebrewVowels(strongsDefinition.original) &&
+        hebrewConsonantsOnly(analysisText) ===
+          hebrewConsonantsOnly(strongsDefinition.original)
+        ? strongsDefinition.original.trim()
+        : analysisText
+      : analysisText;
   const rootText =
     isHebrew && strongsDefinition?.original?.trim()
       ? strongsDefinition.original.trim()
@@ -320,8 +399,39 @@ export function DictionaryModal({
     [letterAnalysis, rootLetters],
   );
   const hasRoot = rootLetters.length > 0;
-  const gematriaQuery =
-    open && isHebrew && hasRoot && rootValueSum > 0 ? rootValueSum : null;
+  const canQueryRootSum = hasRoot && rootValueSum > 0;
+  const canQuerySurfaceSum = letterValueSum > 0;
+  const showGematriaMatches =
+    open && isHebrew && (canQueryRootSum || canQuerySurfaceSum);
+  const activeGematriaSumSource: GematriaSumSource =
+    gematriaSumSource === "root" && canQueryRootSum
+      ? "root"
+      : canQuerySurfaceSum
+        ? "surface"
+        : "root";
+  const gematriaQuery = showGematriaMatches
+    ? activeGematriaSumSource === "root"
+      ? rootValueSum
+      : letterValueSum
+    : null;
+  const gematriaSumLabel =
+    activeGematriaSumSource === "root" ? "어근 합계" : "본문 합계";
+  const gematriaSumDisplayText =
+    activeGematriaSumSource === "root"
+      ? rootText
+      : hasHebrewVowels(analysisText)
+        ? analysisText.trim()
+        : strongsDefinition?.original?.trim() ||
+          analysisText.trim() ||
+          null;
+  const gematriaNumberClassName =
+    activeGematriaSumSource === "root"
+      ? "rounded-md bg-amber-200/80 px-1.5 py-0.5 text-amber-950 dark:bg-amber-800/55 dark:text-amber-100"
+      : "rounded-md bg-sky-200/80 px-1.5 py-0.5 text-sky-950 dark:bg-sky-800/55 dark:text-sky-100";
+  const gematriaHebrewClassName =
+    activeGematriaSumSource === "root"
+      ? "text-amber-800/90 dark:text-amber-300/90"
+      : "text-sky-800/90 dark:text-sky-300/90";
   const definitionError =
     fetchedDefinition?.strongs === activeStrongs
       ? fetchedDefinition.error
@@ -354,6 +464,7 @@ export function DictionaryModal({
     setAnalysisFocus(null);
     setGematriaPage(1);
     setGematriaFilter("all");
+    setGematriaSumSource("root");
   };
 
   const searchStrongsVerses = (strongs: string) => {
@@ -736,7 +847,7 @@ export function DictionaryModal({
                       isHebrew ? "font-hebrew" : "font-greek"
                     }`}
                   >
-                    {analysisText}
+                    {analysisDisplayText}
                   </span>
                   {isLinkableStrongs(activeStrongs) ? (
                     <button
@@ -838,33 +949,46 @@ export function DictionaryModal({
                 </p>
               ) : (
                 <LetterAnalysisTable
-                  wordText={analysisText}
+                  wordText={analysisDisplayText}
                   rootText={rootText}
                   letters={markedLetters}
                   surfaceValueSum={letterValueSum}
                   rootValueSum={rootValueSum}
                   hasRoot={hasRoot}
+                  selectedSumSource={activeGematriaSumSource}
+                  onSelectSumSource={(source) => {
+                    setGematriaSumSource(source);
+                    setGematriaPage(1);
+                    setGematriaFilter("all");
+                  }}
                 />
               )}
 
-              {gematriaQuery !== null && (
+              {showGematriaMatches && gematriaQuery !== null && (
                 <div
                   className={`${featuredPanelClassName} px-4 py-4`}
                 >
                   <div className="mb-3">
                     <div>
                       <p className="text-xs font-semibold tracking-wide text-amber-800/70">
-                        게마트리아 매치
+                        게마트리아 매치 · {gematriaSumLabel}
                       </p>
-                      <h3 className="mt-1 font-serif text-base font-bold text-stone-900">
-                        수치 {gematriaQuery}
-                        {gematriaResult?.sourceRootText ? (
+                      <h3 className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1 font-serif text-base font-bold text-stone-900 dark:text-stone-100">
+                        <span className="inline-flex items-baseline gap-1.5">
+                          <span>수치</span>
+                          <span
+                            className={`font-semibold tabular-nums ${gematriaNumberClassName}`}
+                          >
+                            {gematriaQuery}
+                          </span>
+                        </span>
+                        {gematriaSumDisplayText ? (
                           <span
                             dir="rtl"
                             lang="he"
-                            className="ms-2 font-hebrew text-sm font-semibold text-amber-800/80"
+                            className={`font-hebrew text-sm font-semibold ${gematriaHebrewClassName}`}
                           >
-                            {gematriaResult.sourceRootText}
+                            {gematriaSumDisplayText}
                           </span>
                         ) : null}
                       </h3>
@@ -994,6 +1118,7 @@ export function DictionaryModal({
                                         text: match.original,
                                         gloss: match.gloss,
                                       });
+                                      setGematriaSumSource("root");
                                       setGematriaFilter("all");
                                       setGematriaPage(1);
                                     }}
@@ -1015,21 +1140,9 @@ export function DictionaryModal({
                                     {match.strongs}
                                   </button>
                                   {match.gloss && (
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setAnalysisFocus({
-                                          strongs: match.strongs,
-                                          text: match.original,
-                                          gloss: match.gloss,
-                                        });
-                                        setGematriaFilter("all");
-                                        setGematriaPage(1);
-                                      }}
-                                      className="min-w-0 cursor-pointer text-left text-sm text-stone-600 transition-colors hover:text-stone-900"
-                                    >
+                                    <span className="min-w-0 text-sm text-stone-600">
                                       {match.gloss}
-                                    </button>
+                                    </span>
                                   )}
                                 </div>
                               </li>

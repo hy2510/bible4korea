@@ -4,9 +4,9 @@ import { memo } from "react";
 import { LinkIcon } from "@/components/ChevronIcons";
 import { OriginalWordRow } from "@/components/OriginalWordRow";
 import { KoreanVerseText } from "@/components/KoreanVerseText";
+import type { PronunciationHighlightMode } from "@/components/KoreanVerseText";
 import {
   CheckIcon,
-  MicrophoneIcon,
 } from "@/components/PronunciationIcons";
 import type { ChapterVerse } from "@/lib/verse-types";
 
@@ -18,6 +18,7 @@ interface VerseDisplayProps extends ChapterVerse {
   registerAnchor?: boolean;
   highlightStrongs?: string;
   pronunciationCharacterCount?: number;
+  pronunciationHighlightMode?: PronunciationHighlightMode;
   pronunciationCompleted?: boolean;
   pronunciationPanelOpen?: boolean;
   onOpenPronunciationPractice?: (verseNum: number) => void;
@@ -36,6 +37,7 @@ function VerseDisplayComponent({
   registerAnchor = true,
   highlightStrongs,
   pronunciationCharacterCount,
+  pronunciationHighlightMode,
   pronunciationCompleted = false,
   pronunciationPanelOpen = false,
   onOpenPronunciationPractice,
@@ -58,6 +60,7 @@ function VerseDisplayComponent({
         <KoreanVerseText
           text={korean}
           pronunciationCharacterCount={pronunciationCharacterCount}
+          pronunciationHighlightMode={pronunciationHighlightMode}
           onSelect={
             onVerseSelect ? () => onVerseSelect(verseNum) : undefined
           }
@@ -91,14 +94,13 @@ function VerseDisplayComponent({
               event.stopPropagation();
               onOpenPronunciationPractice(verseNum);
             }}
-            className={`ms-1.5 inline-flex translate-y-0.5 cursor-pointer items-center justify-center transition-colors ${
+            className={`ms-1.5 inline-flex translate-y-0.5 cursor-pointer items-center justify-center rounded-full p-0.5 transition-colors ${
               pronunciationCompleted
-                ? "gap-0.5 rounded-full border border-emerald-700 bg-emerald-600 px-1.5 py-0.5 text-white hover:bg-emerald-700 dark:border-emerald-500 dark:bg-emerald-600 dark:text-white dark:hover:bg-emerald-500"
-                : "rounded-full p-0.5 text-amber-800 hover:bg-amber-100/80 hover:text-amber-950 dark:text-amber-400 dark:hover:bg-stone-800/80 dark:hover:text-amber-300"
+                ? "text-emerald-600 hover:bg-emerald-50 dark:text-emerald-500 dark:hover:bg-stone-800/80"
+                : "text-amber-800/40 hover:bg-amber-100/80 hover:text-amber-800/70 dark:text-amber-400/35 dark:hover:bg-stone-800/80 dark:hover:text-amber-400/70"
             }`}
           >
-            <MicrophoneIcon className="h-4 w-4" />
-            {pronunciationCompleted && <CheckIcon className="h-3.5 w-3.5" />}
+            <CheckIcon className="h-4 w-4" active={pronunciationCompleted} />
           </button>
         )}
       </p>

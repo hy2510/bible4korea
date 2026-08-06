@@ -14,6 +14,15 @@ export function parseStrongsQuery(query: string): string | null {
   return `${match[1].toUpperCase()}${match[2]}`;
 }
 
+/** 숫자만 입력된 게마트리아 수치 (예: 390). Strong’s(H/G 접두)와 구분. */
+export function parseGematriaQuery(query: string): number | null {
+  const trimmed = query.trim();
+  if (!/^\d+$/.test(trimmed)) return null;
+  const value = Number.parseInt(trimmed, 10);
+  if (!Number.isInteger(value) || value < 0) return null;
+  return value;
+}
+
 export function strongsCodesMatch(a: string, b: string): boolean {
   const left = parseStrongsQuery(a);
   const right = parseStrongsQuery(b);

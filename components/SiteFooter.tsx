@@ -110,9 +110,6 @@ export function SiteFooter() {
             사용하였음.
           </p>
           <p className="leading-5">
-            Credit: 호열 · 라엘 · 준범 · 준서
-          </p>
-          <p className="leading-5">
             <Link
               href="/licenses"
               className="cursor-pointer underline-offset-2 transition-colors hover:text-foreground hover:underline"
